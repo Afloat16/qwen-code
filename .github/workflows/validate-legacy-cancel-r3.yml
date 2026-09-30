@@ -1,0 +1,119 @@
+name: Validate legacy cancellation round 3
+on:
+  push:
+    branches: [validation/qwen-round3-20261001]
+permissions:
+  contents: read
+jobs:
+  transport:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 6ff638bf37e54fe23619d1b445b01497251089b3
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable
+      - name: Install exact workspace dependencies and build
+        run: corepack pnpm install --frozen-lockfile --reporter=append-only
+      - name: Test both transport files against the exact candidate
+        working-directory: packages/acp-bridge
+        run: corepack pnpm exec vitest run src/ndJsonStream.test.ts src/ndJsonStream.legacy-cancel.test.ts --pool=threads --maxWorkers=1 --minWorkers=1 --no-file-parallelism
+      - name: Check changed source and test formatting and lint
+        run: |
+          corepack pnpm exec prettier --check packages/acp-bridge/src/ndJsonStream.ts packages/acp-bridge/src/ndJsonStream.legacy-cancel.test.ts
+          corepack pnpm exec eslint packages/acp-bridge/src/ndJsonStream.ts packages/acp-bridge/src/ndJsonStream.legacy-cancel.test.ts
+      - name: Workspace typecheck
+        run: npm run typecheck
+      - name: Native mutation checks with exact candidate restoration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+          
+          root = Path.cwd()
+          source_path = root / "packages/acp-bridge/src/ndJsonStream.ts"
+          test_path = root / "packages/acp-bridge/src/ndJsonStream.legacy-cancel.test.ts"
+          pristine_source = source_path.read_text()
+          pristine_tests = test_path.read_text()
+          reviewed_source = subprocess.check_output(
+              ["git", "show", "f77d62d9db2b0c1ada4ab8b272c29c004aec36cb:packages/acp-bridge/src/ndJsonStream.ts"],
+              text=True,
+          )
+          start = pristine_source.index("function readLegacyChunk(")
+          end = pristine_source.index("async function readBoundedChunk(", start)
+          legacy = pristine_source[start:end]
+          
+          
+          def replace_once(value, before, after):
+              assert value.count(before) == 1, before
+              return value.replace(before, after, 1)
+          
+          
+          no_guard = replace_once(legacy, "    if (isCanceled()) return;\n", "")
+          no_guard_source = pristine_source[:start] + no_guard + pristine_source[end:]
+          old_parse = """  try {
+              const message = JSON.parse(trimmedLine) as AnyMessage;
+              controller.enqueue(message);
+              reportReceivedMessage(lineBytes, message, hooks);
+            } catch (err) {
+              // eslint-disable-next-line no-console -- match ACP SDK parse-error behavior
+              console.error('Failed to parse JSON message:', trimmedLine, err);
+            }"""
+          new_parse = """  let message: AnyMessage;
+            try {
+              message = JSON.parse(trimmedLine) as AnyMessage;
+            } catch (err) {
+              // eslint-disable-next-line no-console -- match ACP SDK parse-error behavior
+              console.error('Failed to parse JSON message:', trimmedLine, err);
+              return;
+            }
+            controller.enqueue(message);
+            reportReceivedMessage(lineBytes, message, hooks);"""
+          arms = [
+              ("reviewed source with new tests", reviewed_source, 3, True),
+              ("per-line cancellation guard removed", no_guard_source, 3, True),
+              ("guard removed with parse-only catch", replace_once(no_guard_source, old_parse, new_parse), 2, False),
+              ("intact guard with parse-only catch", replace_once(pristine_source, old_parse, new_parse), None, False),
+          ]
+          command = [
+              "corepack", "pnpm", "exec", "vitest", "run",
+              "src/ndJsonStream.test.ts", "src/ndJsonStream.legacy-cancel.test.ts",
+              "--pool=threads", "--maxWorkers=1", "--minWorkers=1", "--no-file-parallelism",
+          ]
+          expected_name = "stops later frames in the same chunk when a message hook cancels its reader"
+          try:
+              for name, source, expected_enqueues, expect_error_assertion in arms:
+                  print("::group::" + name, flush=True)
+                  source_path.write_text(source)
+                  result = subprocess.run(
+                      command, cwd=root / "packages/acp-bridge", text=True,
+                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=120,
+                  )
+                  clean = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", result.stdout)
+                  print(clean, flush=True)
+                  print("native vitest exit:", result.returncode, flush=True)
+                  if expected_enqueues is not None:
+                      assert result.returncode == 1, name + ": expected a test assertion failure"
+                      assert re.search(r"Tests\s+1 failed\s*\|\s*56 passed\s*\(57\)", clean), name
+                      assert expected_name in clean, name
+                      assert "AssertionError" in clean, name
+                      assert 'expected "enqueue" to be called once' in clean, name + ": missing direct enqueue oracle"
+                      assert f"got {expected_enqueues} times" in clean, name
+                      log_assertion = 'expected "error" to not be called at all'
+                      assert (log_assertion in clean) == expect_error_assertion, name + ": wrong console-error oracle"
+                  else:
+                      assert result.returncode == 0, name
+                      assert re.search(r"Tests\s+57 passed\s*\(57\)", clean), name
+                  print("::endgroup::", flush=True)
+          finally:
+              source_path.write_text(pristine_source)
+          assert source_path.read_text() == pristine_source
+          assert test_path.read_text() == pristine_tests
+          subprocess.run(["git", "diff", "--exit-code"], check=True)
+          print("Round-3 native mutation matrix passed; exact candidate files restored.", flush=True)
+          PY
