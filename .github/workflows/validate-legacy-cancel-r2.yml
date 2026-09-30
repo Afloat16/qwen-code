@@ -1,0 +1,128 @@
+name: Validate legacy cancellation round 2
+on:
+  push:
+    branches: [validation/qwen-round2-20260930]
+permissions:
+  contents: read
+jobs:
+  transport:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: f77d62d9db2b0c1ada4ab8b272c29c004aec36cb
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable
+      - name: Install exact workspace dependencies and build
+        run: corepack pnpm install --frozen-lockfile --reporter=append-only
+      - name: Test both transport files against the exact candidate
+        working-directory: packages/acp-bridge
+        run: corepack pnpm exec vitest run src/ndJsonStream.test.ts src/ndJsonStream.legacy-cancel.test.ts --pool=threads --maxWorkers=1 --minWorkers=1 --no-file-parallelism
+      - name: Check changed source and test formatting and lint
+        run: |
+          corepack pnpm exec prettier --check packages/acp-bridge/src/ndJsonStream.ts packages/acp-bridge/src/ndJsonStream.legacy-cancel.test.ts
+          corepack pnpm exec eslint packages/acp-bridge/src/ndJsonStream.ts packages/acp-bridge/src/ndJsonStream.legacy-cancel.test.ts
+      - name: Workspace typecheck
+        run: npm run typecheck
+      - name: Native mutation checks with exact candidate restoration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          import re
+          
+          root = Path.cwd()
+          source_path = root / "packages/acp-bridge/src/ndJsonStream.ts"
+          test_path = root / "packages/acp-bridge/src/ndJsonStream.legacy-cancel.test.ts"
+          pristine_source = source_path.read_text()
+          candidate_tests = test_path.read_text()
+          baseline_tests = subprocess.check_output(
+              ["git", "show", "580d20a3791acdfafa85ac7dd01afe1aa0926c0a:packages/acp-bridge/src/ndJsonStream.legacy-cancel.test.ts"],
+              text=True,
+          )
+          start = pristine_source.index("function createLegacyReadable(")
+          end = pristine_source.index("function createBoundedReadable(", start)
+          legacy = pristine_source[start:end]
+          
+          def replace_once(value, before, after):
+              assert value.count(before) == 1, before
+              return value.replace(before, after, 1)
+          
+          def with_legacy(block):
+              return pristine_source[:start] + block + pristine_source[end:]
+          
+          delayed_release = replace_once(legacy, "reader.releaseLock();", "if (!canceled) reader.releaseLock();")
+          delayed_release = replace_once(
+              delayed_release,
+              "if (reader) await cancelReader(reader, reason);",
+              "if (reader) {\n        await cancelReader(reader, reason);\n        reader.releaseLock();\n      }",
+          )
+          no_guard = replace_once(legacy, "if (canceled || done) break;", "if (done) break;")
+          no_guard_source = with_legacy(no_guard)
+          old_parse = """  try {
+              const message = JSON.parse(trimmedLine) as AnyMessage;
+              controller.enqueue(message);
+              reportReceivedMessage(lineBytes, message, hooks);
+            } catch (err) {
+              // eslint-disable-next-line no-console -- match ACP SDK parse-error behavior
+              console.error('Failed to parse JSON message:', trimmedLine, err);
+            }"""
+          new_parse = """  let message: AnyMessage;
+            try {
+              message = JSON.parse(trimmedLine) as AnyMessage;
+            } catch (err) {
+              // eslint-disable-next-line no-console -- match ACP SDK parse-error behavior
+              console.error('Failed to parse JSON message:', trimmedLine, err);
+              return;
+            }
+            controller.enqueue(message);
+            reportReceivedMessage(lineBytes, message, hooks);"""
+          double_mutant = replace_once(no_guard_source, old_parse, new_parse)
+          narrow_parse = replace_once(pristine_source, old_parse, new_parse)
+          arms = [
+              ("baseline + delayed lock release", with_legacy(delayed_release), baseline_tests, False, None),
+              ("strengthened + delayed lock release", with_legacy(delayed_release), candidate_tests, True, "waits for asynchronous upstream cancellation to settle"),
+              ("strengthened + canceled guard removed", no_guard_source, candidate_tests, True, "does not parse or enqueue a queued chunk after immediate cancellation"),
+              ("baseline + canceled guard removed + parse-only catch", double_mutant, baseline_tests, False, None),
+              ("strengthened + canceled guard removed + parse-only catch", double_mutant, candidate_tests, True, "does not parse or enqueue a queued chunk after immediate cancellation"),
+              ("strengthened + parse-only catch", narrow_parse, candidate_tests, False, None),
+          ]
+          command = [
+              "corepack", "pnpm", "exec", "vitest", "run",
+              "src/ndJsonStream.test.ts", "src/ndJsonStream.legacy-cancel.test.ts",
+              "--pool=threads", "--maxWorkers=1", "--minWorkers=1", "--no-file-parallelism",
+          ]
+          try:
+              for name, source, tests, should_fail, expected_name in arms:
+                  print("::group::" + name, flush=True)
+                  source_path.write_text(source)
+                  test_path.write_text(tests)
+                  result = subprocess.run(
+                      command, cwd=root / "packages/acp-bridge", text=True,
+                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=120,
+                  )
+                  clean = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", result.stdout)
+                  print(clean, flush=True)
+                  print("native vitest exit:", result.returncode, flush=True)
+                  if should_fail:
+                      assert result.returncode == 1, name + ": expected a test assertion failure"
+                      assert re.search(r"Tests\s+1 failed\s*\|\s*53 passed\s*\(54\)", clean), name
+                      assert expected_name in clean, name
+                      assert "AssertionError" in clean, name
+                      expected_assertion = "expected true to be false" if "delayed lock" in name else 'expected "enqueue" to not be called at all'
+                      assert expected_assertion in clean, name + ": wrong failing assertion"
+                  else:
+                      assert result.returncode == 0, name
+                      assert re.search(r"Tests\s+54 passed\s*\(54\)", clean), name
+                  print("::endgroup::", flush=True)
+          finally:
+              source_path.write_text(pristine_source)
+              test_path.write_text(candidate_tests)
+          assert source_path.read_text() == pristine_source
+          assert test_path.read_text() == candidate_tests
+          print("Native mutation matrix passed; exact candidate files restored.", flush=True)
+          PY
