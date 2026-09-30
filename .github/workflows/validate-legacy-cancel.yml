@@ -1,0 +1,29 @@
+name: Validate legacy cancellation review
+on:
+  push:
+    branches: [validation/qwen-review-20260930]
+permissions:
+  contents: read
+jobs:
+  transport:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 580d20a3791acdfafa85ac7dd01afe1aa0926c0a
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable
+      - name: Install exact workspace dependencies and build
+        run: corepack pnpm install --frozen-lockfile --reporter=append-only
+      - name: Test both transport files against the exact candidate
+        working-directory: packages/acp-bridge
+        run: corepack pnpm exec vitest run src/ndJsonStream.test.ts src/ndJsonStream.legacy-cancel.test.ts --pool=threads --maxWorkers=1 --minWorkers=1 --no-file-parallelism
+      - name: Check changed test formatting and lint
+        run: |
+          corepack pnpm exec prettier --check packages/acp-bridge/src/ndJsonStream.legacy-cancel.test.ts
+          corepack pnpm exec eslint packages/acp-bridge/src/ndJsonStream.legacy-cancel.test.ts
+      - name: Workspace typecheck
+        run: npm run typecheck
