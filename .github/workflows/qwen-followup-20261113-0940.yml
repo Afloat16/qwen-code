@@ -1,0 +1,187 @@
+name: Qwen follow-up validation 20261113
+
+on:
+  push:
+    branches:
+      - validation/qwen-followup-20261113-0940
+
+permissions:
+  contents: read
+
+jobs:
+  typescript:
+    name: PR ${{ matrix.pr }} / TypeScript
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pr: 17106
+            sha: 718f28d29315025328864c44b0db7a10b17ab0fc
+            package: packages/acp-bridge
+            tests: ""
+          - pr: 17109
+            sha: ba5f9e8dbbbf25299a6db5873011b02599ef41cc
+            package: packages/web-shell
+            tests: client/components/messages/MemoryMessage.test.tsx client/daemon/workspace/hooks/useDaemonMemory.test.tsx
+          - pr: 17118
+            sha: f5a08285854d03543c586e0bfdcc826acc1c32ec
+            package: packages/cli
+            tests: src/commands/review/run.test.ts src/commands/review/lib/deadline.test.ts
+          - pr: 17120
+            sha: 1c8ea983faf86dbaa0a958741f1c6cd76f8e937d
+            package: packages/cli
+            tests: src/cli.test.ts
+          - pr: 17123
+            sha: 760c694994232a9a09a9b093c5215bba84593962
+            package: packages/cli
+            tests: src/serve/fast-path.test.ts src/config/migration/versions/v1-to-v2.test.ts
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI: "true"
+      NODE_OPTIONS: --max-old-space-size=6144
+      CANDIDATE_SHA: ${{ matrix.sha }}
+      PRIMARY_PACKAGE: ${{ matrix.package }}
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: ${{ matrix.sha }}
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify and record the tested source
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen-followup-validation"
+          {
+            [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+            test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+            git show --no-patch --format=fuller HEAD
+            git diff --check HEAD^ HEAD
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/source.log"
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install locked dependencies
+        env:
+          QWEN_SKIP_PREPARE: "1"
+        run: |
+          corepack enable
+          {
+            node --version
+            corepack pnpm --version
+            corepack pnpm install --frozen-lockfile --reporter=append-only
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/install.log"
+      - name: Build all workspaces
+        id: build
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/build.log"
+      - name: Check all workspace and integration types
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/typecheck.log"
+      - name: Run the requested package regressions
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        working-directory: ${{ matrix.package }}
+        env:
+          TEST_PATHS: ${{ matrix.tests }}
+        run: |
+          read -r -a test_paths <<< "$TEST_PATHS"
+          corepack pnpm exec vitest run "${test_paths[@]}" --maxWorkers=1 --minWorkers=1 --retry=0 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/package-tests.log"
+      - name: Verify review skill parity for PR 17118
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.pr == 17118 }}
+        working-directory: packages/core
+        run: corepack pnpm exec vitest run src/skills/bundled/review/SKILL.test.ts --maxWorkers=1 --minWorkers=1 --retry=0 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/review-skill-tests.log"
+      - name: Collect JUnit reports
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen-followup-validation"
+          for report in "$PRIMARY_PACKAGE/junit.xml" packages/core/junit.xml; do
+            if [ -f "$report" ]; then
+              report_name="${report//\//-}"
+              cp "$report" "$RUNNER_TEMP/qwen-followup-validation/$report_name"
+            fi
+          done
+      - name: Preserve validation logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen-followup-${{ matrix.pr }}-${{ matrix.sha }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qwen-followup-validation/
+          if-no-files-found: warn
+          retention-days: 14
+
+  java:
+    name: PR 17113 / Java SDK
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash
+        working-directory: packages/sdk-java/qwencode
+    env:
+      CI: "true"
+      CANDIDATE_SHA: fe80ad46bac2ee886a3d40394a3bce2719cd349b
+      MAVEN_OPTS: -Xmx512m
+      JAVA_TOOL_OPTIONS: -Xmx512m
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: fe80ad46bac2ee886a3d40394a3bce2719cd349b
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify and record the tested source
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen-followup-validation"
+          {
+            test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+            git show --no-patch --format=fuller HEAD
+            git diff --check HEAD^ HEAD
+            python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('pom.xml').getroot()
+          release = root.find('{*}properties/{*}maven.compiler.release')
+          assert release is not None and release.text == '11', 'Expected Java 11 release target'
+          print('Maven compiler release:', release.text)
+          PY
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/source.log"
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with:
+          distribution: temurin
+          java-version: "21"
+          settings-path: "${{ runner.temp }}/setup-java-m2"
+      - name: Use isolated Maven settings
+        run: echo "MAVEN_ARGS=--settings $RUNNER_TEMP/setup-java-m2/settings.xml --toolchains $RUNNER_TEMP/setup-java-m2/toolchains.xml" >> "$GITHUB_ENV"
+      - name: Run the complete SDK test suite with Java 11 release
+        id: sdk_tests
+        run: |
+          {
+            java -version
+            mvn -version
+            mvn --batch-mode --no-transfer-progress clean test
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/sdk-tests.log"
+      - name: Check SDK Java style
+        if: ${{ !cancelled() && steps.sdk_tests.outcome == 'success' }}
+        run: mvn --batch-mode --no-transfer-progress checkstyle:check 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/checkstyle.log"
+      - name: Package the tested SDK artifacts
+        if: ${{ !cancelled() && steps.sdk_tests.outcome == 'success' }}
+        run: mvn --batch-mode --no-transfer-progress -DskipTests -Dgpg.skip=true package 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/package.log"
+      - name: Preserve validation logs and test reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen-followup-17113-fe80ad46bac2ee886a3d40394a3bce2719cd349b-attempt-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qwen-followup-validation/
+            packages/sdk-java/qwencode/target/surefire-reports/
+            packages/sdk-java/qwencode/target/checkstyle-result.xml
+            packages/sdk-java/qwencode/target/site/jacoco/
+          if-no-files-found: warn
+          retention-days: 14
