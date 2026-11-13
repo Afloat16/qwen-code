@@ -7,5 +7,15 @@
   "failure": "packages/cli tsc --build was Killed with status 137; no TypeScript diagnostic was printed",
   "context": "Focused Vitest was also running on the same host at that time. No claim about the candidate source is inferred from this termination.",
   "evidence_log": "qwen17123-alias-baseline-build.log",
-  "next_gate": "Separate hosted job runs the standard full build, full workspace/integration typecheck, and focused regressions sequentially on the exact candidate."
+  "next_gate": "Separate hosted job runs the standard full build, full workspace/integration typecheck, and focused regressions sequentially on the exact candidate.",
+  "hosted_attempt_1": {
+    "run_id": 43414227364,
+    "job_id": 131847956274,
+    "candidate": "c1234bd03dd9ae74d52448628c6b7e5f474ec272",
+    "result": "failed",
+    "reason": "TS2345 in new fast-path regression at line 2463: a mutable string | undefined fixture variable was read inside an assertion callback.",
+    "fix": "Capture the definite workspace path in a const local, retain the mutable fixture variable only for cleanup.",
+    "production_changed_by_fix": false,
+    "artifact_id": 14030983788
+  }
 }

@@ -21,8 +21,8 @@ jobs:
     env:
       CI: 'true'
       NODE_OPTIONS: --max-old-space-size=6144
-      CANDIDATE_SHA: c1234bd03dd9ae74d52448628c6b7e5f474ec272
-      CANDIDATE_TREE: 71d5b1eaddae1ddde58194c070486deebe42075a
+      CANDIDATE_SHA: f38593c135e451e180fcca8cbac245c727c501ae
+      CANDIDATE_TREE: adc00ab0f9c7e30da27e9a8b9ba401257683e74c
       EXPECTED_FOCUSED_TEST_COUNT: '203'
     steps:
       - name: Check out the validation scripts
@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: Afloat16/qwen-code
-          ref: c1234bd03dd9ae74d52448628c6b7e5f474ec272
+          ref: f38593c135e451e180fcca8cbac245c727c501ae
           path: source
           persist-credentials: false
           fetch-depth: 2

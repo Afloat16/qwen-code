@@ -2452,15 +2452,16 @@ describe('serve fast path environment bootstrap', () => {
 
   it('still rejects a non-boolean legacy folderTrust value before the alias', () => {
     const qwenHome = useTempQwenHome();
-    tempWorkspace = realpathSync(
+    const workspace = realpathSync(
       mkdtempSync(join(os.tmpdir(), 'qws-fast-path-invalid-legacy-trust-')),
     );
+    tempWorkspace = workspace;
     writeFileSync(
       join(qwenHome, 'settings.json'),
       JSON.stringify({ folderTrust: 'false', folderTrustFeature: true }),
     );
 
-    expect(() => loadServeFastPathSettings(tempWorkspace)).toThrow(
+    expect(() => loadServeFastPathSettings(workspace)).toThrow(
       'folderTrust must be a boolean',
     );
   });
