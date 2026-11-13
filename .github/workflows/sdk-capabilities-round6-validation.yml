@@ -1,0 +1,133 @@
+name: SDK capabilities round6 validation
+
+on:
+  push:
+    branches:
+      - validation/sdk-capabilities-round6-20261113
+
+permissions:
+  contents: read
+
+jobs:
+  sdk-and-workspace:
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI: "true"
+      NODE_OPTIONS: --max-old-space-size=6144
+      CANDIDATE_SHA: 640a94fa53f690bafea90ec4e7d30dfe542a661a
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: 640a94fa53f690bafea90ec4e7d30dfe542a661a
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify and record the tested source
+        run: |
+          mkdir -p "$RUNNER_TEMP/sdk-capabilities-validation"
+          {
+            test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+            git show --no-patch --format=fuller HEAD
+            git diff --stat HEAD^ HEAD
+            git diff --check HEAD^ HEAD
+            test "$(git diff --name-only HEAD^ HEAD)" = packages/sdk-typescript/test/unit/negotiateTransport.test.ts
+          } 2>&1 | tee "$RUNNER_TEMP/sdk-capabilities-validation/source.log"
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install locked dependencies
+        env:
+          QWEN_SKIP_PREPARE: "1"
+        run: |
+          corepack enable
+          {
+            node --version
+            corepack pnpm --version
+            corepack pnpm install --frozen-lockfile --reporter=append-only
+          } 2>&1 | tee "$RUNNER_TEMP/sdk-capabilities-validation/install.log"
+      - name: Build all workspaces
+        id: build
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/sdk-capabilities-validation/build.log"
+      - name: Check all workspace and integration types
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/sdk-capabilities-validation/typecheck.log"
+      - name: Check changed test formatting and lint
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          {
+            corepack pnpm exec prettier --check packages/sdk-typescript/test/unit/negotiateTransport.test.ts
+            corepack pnpm exec eslint packages/sdk-typescript/test/unit/negotiateTransport.test.ts
+          } 2>&1 | tee "$RUNNER_TEMP/sdk-capabilities-validation/lint.log"
+      - name: Verify both assertions reject the counterfactual regressions
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, os, subprocess, xml.etree.ElementTree as ET
+          repo = Path.cwd()
+          evidence = Path(os.environ['RUNNER_TEMP']) / 'sdk-capabilities-validation'
+          source = repo / 'packages/sdk-typescript/src/daemon/negotiateTransport.ts'
+          original = source.read_text()
+          default = 'opts?.probeTimeoutMs ?? 5_000'
+          timer = '    const timer = setTimeout(() => ctrl.abort(), probeTimeoutMs);'
+          fetch_end = '        signal: ctrl.signal,\n      });'
+          assert original.count(default) == original.count(timer) == original.count(fetch_end) == 1
+          mutants = {
+            'default30000': original.replace(default, 'opts?.probeTimeoutMs ?? 30_000'),
+            'timerAfterFetch': original.replace(timer, '    let timer: ReturnType<typeof setTimeout> | undefined;').replace(fetch_end, fetch_end + '\n      timer = setTimeout(() => ctrl.abort(), probeTimeoutMs);'),
+          }
+          command = ['corepack', 'pnpm', 'exec', 'vitest', 'run', 'test/unit/negotiateTransport.test.ts', '--retry=0', '--maxWorkers=1', '--minWorkers=1', '--testTimeout=10000']
+          results = []
+          try:
+            for name, content in mutants.items():
+              source.write_text(content)
+              logfile = evidence / ('mutation-' + name + '.log')
+              with logfile.open('w') as out:
+                result = subprocess.run(command, cwd=repo/'packages/sdk-typescript', stdout=out, stderr=subprocess.STDOUT, timeout=90)
+              report = repo / 'packages/sdk-typescript/junit.xml'
+              (evidence / ('mutation-' + name + '.xml')).write_bytes(report.read_bytes())
+              root = ET.parse(report).getroot()
+              failures = [{'test': case.attrib.get('name'), 'message': failure.attrib.get('message')} for case in root.iter('testcase') for failure in case.findall('failure')]
+              text = logfile.read_text()
+              observation = {'mutation':name, 'exit_code':result.returncode, 'failures':failures, 'has_test_timeout':'Test timed out' in text}
+              results.append(observation)
+              print(json.dumps(observation), flush=True)
+              assert result.returncode == 1 and len(failures) == 1, observation
+              assert 'expected false to be true' in failures[0]['message'], observation
+              assert 'Test timed out' not in text and 'Unhandled Errors' not in text, observation
+          finally:
+            source.write_text(original)
+            (evidence/'mutations.json').write_text(json.dumps(results, indent=2)+'\n')
+          with (evidence/'focused-restored.log').open('w') as out:
+            restored = subprocess.run(command, cwd=repo/'packages/sdk-typescript', stdout=out, stderr=subprocess.STDOUT, timeout=90)
+          print((evidence/'focused-restored.log').read_text(), flush=True)
+          assert restored.returncode == 0
+          (evidence/'focused-restored.xml').write_bytes((repo/'packages/sdk-typescript/junit.xml').read_bytes())
+          assert source.read_text() == original
+          subprocess.run(['git','diff','--exit-code','--',str(source.relative_to(repo))], check=True)
+          PY
+      - name: Run the complete SDK suite and public API type fence
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        working-directory: packages/sdk-typescript
+        run: npm run test:ci -- --maxWorkers=2 --minWorkers=1 --retry=0 2>&1 | tee "$RUNNER_TEMP/sdk-capabilities-validation/sdk-suite.log"
+      - name: Collect the full SDK JUnit report
+        if: always()
+        run: |
+          if [ -f packages/sdk-typescript/junit.xml ]; then
+            cp packages/sdk-typescript/junit.xml "$RUNNER_TEMP/sdk-capabilities-validation/sdk-suite.xml"
+          fi
+      - name: Preserve validation logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: sdk-capabilities-round6-640a94fa53f690bafea90ec4e7d30dfe542a661a-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/sdk-capabilities-validation/
+          if-no-files-found: warn
+          retention-days: 14
