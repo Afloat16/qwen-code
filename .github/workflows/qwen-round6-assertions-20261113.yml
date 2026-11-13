@@ -1,0 +1,396 @@
+name: Qwen review assertions validation 20261113
+
+on:
+  push:
+    branches:
+      - validation/qwen-round6-assertions-20261113
+
+permissions:
+  contents: read
+
+jobs:
+  typescript:
+    name: PR ${{ matrix.pr }} / TypeScript
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pr: 17123
+            sha: 9fe37b8653a312b200f95b8d57cca763d414e025
+            package: packages/cli
+            test_file: packages/cli/src/config/migration/versions/v1-to-v2.test.ts
+            tests: src/serve/fast-path.test.ts src/config/migration/versions/v1-to-v2.test.ts
+          - pr: 17122
+            sha: f9703610261f8dba04f9602464a7f9681df93af8
+            package: packages/cli
+            test_file: packages/cli/src/ui/utils/todoSnapshot.test.ts
+            tests: src/ui/utils/todoSnapshot.test.ts src/ui/utils/todoSnapshot.mcp.test.ts
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI: "true"
+      NODE_OPTIONS: --max-old-space-size=6144
+      CANDIDATE_SHA: ${{ matrix.sha }}
+      PRIMARY_PACKAGE: ${{ matrix.package }}
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: ${{ matrix.sha }}
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify and record the tested source
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen-followup-validation"
+          {
+            [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+            test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+            git show --no-patch --format=fuller HEAD
+            git diff --check HEAD^ HEAD
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/source.log"
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install locked dependencies
+        env:
+          QWEN_SKIP_PREPARE: "1"
+        run: |
+          corepack enable
+          {
+            node --version
+            corepack pnpm --version
+            corepack pnpm install --frozen-lockfile --reporter=append-only
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/install.log"
+      - name: Build all workspaces
+        id: build
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/build.log"
+      - name: Check all workspace and integration types
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/typecheck.log"
+      - name: Run the requested package regressions
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        working-directory: ${{ matrix.package }}
+        env:
+          TEST_PATHS: ${{ matrix.tests }}
+        run: |
+          read -r -a test_paths <<< "$TEST_PATHS"
+          corepack pnpm exec vitest run "${test_paths[@]}" --maxWorkers=1 --minWorkers=1 --retry=0 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/package-tests.log"
+      - name: Check the changed test style
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        env:
+          CHANGED_TEST: ${{ matrix.test_file }}
+        run: |
+          {
+            corepack pnpm exec eslint "$CHANGED_TEST"
+            corepack pnpm exec prettier --check "$CHANGED_TEST"
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/test-style.log"
+      - name: Verify consumer coverage and record migration scope
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.pr == 17123 }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+          
+          repo = Path.cwd()
+          cli = repo / "packages/cli"
+          out = Path(os.environ["RUNNER_TEMP"]) / "qwen-followup-validation"
+          out.mkdir(parents=True, exist_ok=True)
+          test_rel = "packages/cli/src/config/migration/versions/v1-to-v2.test.ts"
+          consumer_rel = "packages/cli/src/config/trustedFolders.ts"
+          test_file = repo / test_rel
+          consumer_file = repo / consumer_rel
+          candidate_test = test_file.read_bytes()
+          candidate_consumer = consumer_file.read_bytes()
+          parent_test = subprocess.check_output(["git", "show", "HEAD^:" + test_rel], cwd=repo)
+          results = {}
+          
+          def run_tests(name, files, passed, failed):
+              report_file = out / (name + ".json")
+              command = [
+                  "corepack", "pnpm", "exec", "vitest", "run", *files,
+                  "--maxWorkers=1", "--minWorkers=1", "--retry=0",
+                  "--reporter=json", "--outputFile=" + str(report_file),
+              ]
+              completed = subprocess.run(
+                  command, cwd=cli, text=True, stdout=subprocess.PIPE,
+                  stderr=subprocess.STDOUT, timeout=600,
+              )
+              (out / (name + ".log")).write_text(completed.stdout)
+              print(completed.stdout, end="", flush=True)
+              assert report_file.exists(), "No JSON test report for " + name
+              report = json.loads(report_file.read_text())
+              failed_assertions = [
+                  assertion for suite in report["testResults"]
+                  for assertion in suite["assertionResults"]
+                  if assertion["status"] == "failed"
+              ]
+              result = {
+                  "exit_code": completed.returncode,
+                  "total": report["numTotalTests"],
+                  "passed": report["numPassedTests"],
+                  "failed": report["numFailedTests"],
+                  "pending": report["numPendingTests"],
+                  "failed_names": [item["fullName"] for item in failed_assertions],
+              }
+              results[name] = result
+              print(name + ": " + json.dumps(result), flush=True)
+              for assertion in failed_assertions:
+                  print("\n".join(assertion.get("failureMessages", [])), flush=True)
+              assert completed.returncode == (1 if failed else 0), result
+              assert result["total"] == passed + failed, result
+              assert result["passed"] == passed and result["failed"] == failed, result
+              assert result["pending"] == 0, result
+              return failed_assertions
+          
+          observation_rel = "src/config/migration/versions/round6-scope-observation.test.ts"
+          observation_file = cli / observation_rel
+          assert not observation_file.exists()
+          os.environ["QWEN_ROUND6_OBSERVATIONS"] = str(out / "scope-observations.json")
+          observation_source = r"""
+          import { expect, it } from 'vitest';
+          import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+          import { homedir, tmpdir } from 'node:os';
+          import { join } from 'node:path';
+          import type { Settings } from '../../settings.js';
+          import { needsMigration, runMigrations } from '../index.js';
+          import { isFolderTrustEnabled } from '../../trustedFolders.js';
+          import { readDaemonTrustPolicySnapshot } from '../../daemon-trust-policy.js';
+          import {
+            loadServeFastPathSettings,
+            resetServeFastPathHomeEnvBootstrapForTesting,
+          } from '../../../serve/fast-path-settings.js';
+          
+          it('records current V4 and invalid-value behavior without changing policy', async () => {
+            const historical = {
+              $version: 4,
+              security: { folderTrust: { featureEnabled: true } },
+            };
+            const historicalResult = runMigrations(historical, 'user');
+            const historicalEnabled = isFolderTrustEnabled(historicalResult.settings as Settings);
+            expect(needsMigration(historical)).toBe(false);
+            expect(historicalResult.executedMigrations).toEqual([]);
+            expect(historicalResult.settings).toEqual(historical);
+            expect(historicalEnabled).toBe(false);
+          
+            const invalid = { folderTrustFeature: 'false' };
+            const invalidResult = runMigrations(invalid, 'user');
+            const invalidEnabled = isFolderTrustEnabled(invalidResult.settings as Settings);
+            expect(invalidEnabled).toBe('false');
+            expect(typeof invalidEnabled).toBe('string');
+            expect(Boolean(invalidEnabled)).toBe(true);
+          
+            // This hosted observation uses the real readers and isolated settings files.
+            expect(existsSync(join(homedir(), '.env'))).toBe(false);
+            expect(existsSync(join(homedir(), '.qwen', '.env'))).toBe(false);
+            const taskDir = mkdtempSync(join(tmpdir(), 'qwen-round6-observation-'));
+            const qwenDir = join(taskDir, 'config');
+            const workspace = join(taskDir, 'workspace');
+            mkdirSync(qwenDir);
+            mkdirSync(workspace);
+            const values: Record<string, string> = {
+              QWEN_HOME: qwenDir,
+              QWEN_CODE_SYSTEM_SETTINGS_PATH: join(taskDir, 'system.json'),
+              QWEN_CODE_SYSTEM_DEFAULTS_PATH: join(taskDir, 'defaults.json'),
+              QWEN_CODE_TRUSTED_FOLDERS_PATH: join(taskDir, 'trusted-folders.json'),
+            };
+            const originalValues = new Map(
+              Object.keys(values).map((key) => [key, process.env[key]]),
+            );
+            try {
+              for (const [key, value] of Object.entries(values)) process.env[key] = value;
+              writeFileSync(join(qwenDir, 'settings.json'), JSON.stringify(invalid));
+              writeFileSync(values['QWEN_CODE_SYSTEM_SETTINGS_PATH']!, '{}');
+              writeFileSync(values['QWEN_CODE_SYSTEM_DEFAULTS_PATH']!, '{}');
+              writeFileSync(values['QWEN_CODE_TRUSTED_FOLDERS_PATH']!, '{}');
+              resetServeFastPathHomeEnvBootstrapForTesting();
+              let fastPathError: string | undefined;
+              try {
+                loadServeFastPathSettings(workspace);
+              } catch (error) {
+                fastPathError = error instanceof Error ? error.message : String(error);
+              }
+              expect(fastPathError).toContain('folderTrustFeature must be a boolean');
+              const daemon = await readDaemonTrustPolicySnapshot();
+              expect(daemon.folderTrustEnabled).toBe(false);
+              expect(daemon.settingsError?.code).toBe('trust_policy_invalid');
+              expect(daemon.settingsError?.message).toContain('must be a boolean');
+              const evidence = {
+                historical: {
+                  input: historical,
+                  needsMigration: needsMigration(historical),
+                  executedMigrations: historicalResult.executedMigrations,
+                  migratedSettings: historicalResult.settings,
+                  consumerValue: historicalEnabled,
+                  consumerType: typeof historicalEnabled,
+                },
+                invalid: {
+                  input: invalid,
+                  migratedSettings: invalidResult.settings,
+                  consumerValue: invalidEnabled,
+                  consumerType: typeof invalidEnabled,
+                  consumerTruthy: Boolean(invalidEnabled),
+                  fastPathError,
+                  daemonEnabled: daemon.folderTrustEnabled,
+                  daemonError: daemon.settingsError,
+                },
+              };
+              writeFileSync(process.env['QWEN_ROUND6_OBSERVATIONS']!, JSON.stringify(evidence, null, 2));
+              console.log('ROUND6_SCOPE_OBSERVATIONS ' + JSON.stringify(evidence));
+            } finally {
+              for (const [key, value] of originalValues) {
+                if (value === undefined) delete process.env[key];
+                else process.env[key] = value;
+              }
+              resetServeFastPathHomeEnvBootstrapForTesting();
+              rmSync(taskDir, { recursive: true, force: true });
+            }
+          });
+          """
+          try:
+              observation_file.write_text(observation_source)
+              run_tests("scope-observation-test", [observation_rel], 1, 0)
+          finally:
+              observation_file.unlink(missing_ok=True)
+          
+          needle = b"const folderTrustSetting = settings.security?.folderTrust?.enabled ?? false;"
+          replacement = b"const folderTrustSetting = settings.security?.folderTrust?.featureEnabled ?? false;"
+          assert candidate_consumer.count(needle) == 1
+          try:
+              consumer_file.write_bytes(candidate_consumer.replace(needle, replacement))
+              failed = run_tests(
+                  "reader-drift-with-consumer-assertions",
+                  ["src/config/migration/versions/v1-to-v2.test.ts"], 22, 2,
+              )
+              assert all("true" in item["fullName"] for item in failed), failed
+              assert all(
+                  any("expected false to be true" in message for message in item.get("failureMessages", []))
+                  for item in failed
+              ), failed
+              test_file.write_bytes(parent_test)
+              run_tests(
+                  "reader-drift-with-parent-tests",
+                  ["src/config/migration/versions/v1-to-v2.test.ts"], 24, 0,
+              )
+          finally:
+              test_file.write_bytes(candidate_test)
+              consumer_file.write_bytes(candidate_consumer)
+          
+          assert test_file.read_bytes() == candidate_test
+          assert consumer_file.read_bytes() == candidate_consumer
+          run_tests(
+              "restored-consumer-assertions",
+              ["src/config/migration/versions/v1-to-v2.test.ts"], 24, 0,
+          )
+          subprocess.run(["git", "diff", "--exit-code"], cwd=repo, check=True)
+          head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+          tree = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=repo, text=True).strip()
+          summary = {
+              "candidate": head,
+              "tree": tree,
+              "source_restored": True,
+              "results": results,
+              "scope_observations": json.loads((out / "scope-observations.json").read_text()),
+          }
+          (out / "consumer-verification-summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+          print(json.dumps(summary, indent=2), flush=True)
+          PY
+      - name: Verify JSON null regression sensitivity
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.pr == 17122 }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+          
+          repo = Path.cwd()
+          cli = repo / "packages/cli"
+          out = Path(os.environ["RUNNER_TEMP"]) / "qwen-followup-validation"
+          out.mkdir(parents=True, exist_ok=True)
+          source = cli / "src/ui/utils/todoSnapshot.ts"
+          original = source.read_bytes()
+          needle = b" || candidate === null"
+          assert original.count(needle) == 1, "Expected exactly one JSON-null guard"
+          test_path = "src/ui/utils/todoSnapshot.test.ts"
+          results = {}
+          
+          def run_tests(name, passed, failed):
+              report_file = out / (name + ".json")
+              completed = subprocess.run(
+                  ["corepack", "pnpm", "exec", "vitest", "run", test_path,
+                   "--maxWorkers=1", "--minWorkers=1", "--retry=0",
+                   "--reporter=json", "--outputFile=" + str(report_file)],
+                  cwd=cli, text=True, stdout=subprocess.PIPE,
+                  stderr=subprocess.STDOUT, timeout=600,
+              )
+              (out / (name + ".log")).write_text(completed.stdout)
+              print(completed.stdout, end="", flush=True)
+              assert report_file.exists(), "Missing JSON test report"
+              report = json.loads(report_file.read_text())
+              failures = [assertion for suite in report["testResults"]
+                          for assertion in suite["assertionResults"]
+                          if assertion["status"] == "failed"]
+              result = {
+                  "exit_code": completed.returncode,
+                  "total": report["numTotalTests"],
+                  "passed": report["numPassedTests"],
+                  "failed": report["numFailedTests"],
+                  "pending": report["numPendingTests"],
+                  "failed_names": [item["fullName"] for item in failures],
+              }
+              results[name] = result
+              print(name + ": " + json.dumps(result), flush=True)
+              for assertion in failures:
+                  print("\n".join(assertion.get("failureMessages", [])), flush=True)
+              assert completed.returncode == (1 if failed else 0), result
+              assert result["total"] == passed + failed, result
+              assert result["passed"] == passed and result["failed"] == failed, result
+              assert result["pending"] == 0, result
+              return failures
+          
+          try:
+              source.write_bytes(original.replace(needle, b""))
+              failures = run_tests("json-null-guard-removed", 28, 1)
+              assert failures[0]["fullName"].endswith("ignores a result display whose JSON is null"), failures
+              assert any("TypeError" in message for message in failures[0].get("failureMessages", [])), failures
+          finally:
+              source.write_bytes(original)
+          
+          assert source.read_bytes() == original
+          run_tests("json-null-guard-restored", 29, 0)
+          subprocess.run(["git", "diff", "--exit-code"], cwd=repo, check=True)
+          summary = {
+              "candidate": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
+              "tree": subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=repo, text=True).strip(),
+              "source_restored": True,
+              "results": results,
+          }
+          (out / "json-null-verification-summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+          print(json.dumps(summary, indent=2), flush=True)
+          PY
+      - name: Collect JUnit reports
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen-followup-validation"
+          for report in "$PRIMARY_PACKAGE/junit.xml" packages/core/junit.xml; do
+            if [ -f "$report" ]; then
+              report_name="${report//\//-}"
+              cp "$report" "$RUNNER_TEMP/qwen-followup-validation/$report_name"
+            fi
+          done
+      - name: Preserve validation logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen-followup-${{ matrix.pr }}-${{ matrix.sha }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qwen-followup-validation/
+          if-no-files-found: warn
+          retention-days: 14
