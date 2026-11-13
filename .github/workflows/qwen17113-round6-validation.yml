@@ -1,0 +1,151 @@
+name: Qwen Java control reply follow-up
+
+on:
+  push:
+    branches:
+      - validation/qwen17113-round6-20261113
+
+permissions:
+  contents: read
+
+jobs:
+  java:
+    name: PR 17113 / Java review follow-up
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash
+        working-directory: packages/sdk-java/qwencode
+    env:
+      CI: "true"
+      CANDIDATE_SHA: d4c3989ec57a0940ecf0b80d239804030067f360
+      MAVEN_OPTS: -Xmx512m
+      JAVA_TOOL_OPTIONS: -Xmx512m
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: d4c3989ec57a0940ecf0b80d239804030067f360
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify and record the tested source
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen-followup-validation"
+          {
+            test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+            git show --no-patch --format=fuller HEAD
+            git diff --check HEAD^ HEAD
+            python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('pom.xml').getroot()
+          release = root.find('{*}properties/{*}maven.compiler.release')
+          assert release is not None and release.text == '11', 'Expected Java 11 release target'
+          print('Maven compiler release:', release.text)
+          PY
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/source.log"
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with:
+          distribution: temurin
+          java-version: "21"
+          settings-path: "${{ runner.temp }}/setup-java-m2"
+      - name: Use isolated Maven settings
+        run: echo "MAVEN_ARGS=--settings $RUNNER_TEMP/setup-java-m2/settings.xml --toolchains $RUNNER_TEMP/setup-java-m2/toolchains.xml" >> "$GITHUB_ENV"
+      - name: Run the complete SDK test suite with Java 11 release
+        id: sdk_tests
+        run: |
+          {
+            java -version
+            mvn -version
+            mvn --batch-mode --no-transfer-progress clean test
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/sdk-tests.log"
+          cp -R target/surefire-reports "$RUNNER_TEMP/qwen-followup-validation/full-suite-reports"
+      - name: Check SDK Java style
+        if: ${{ !cancelled() && steps.sdk_tests.outcome == 'success' }}
+        run: mvn --batch-mode --no-transfer-progress checkstyle:check 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/checkstyle.log"
+      - name: Package the tested SDK artifacts
+        if: ${{ !cancelled() && steps.sdk_tests.outcome == 'success' }}
+        run: mvn --batch-mode --no-transfer-progress -DskipTests -Dgpg.skip=true package 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/package.log"
+      - name: Verify focused regressions reject counterfactual mutations
+        env:
+          VALIDATION_OUTPUT_DIR: "${{ runner.temp }}/qwen-followup-validation/mutations"
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import shutil
+          import subprocess
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          
+          output = Path(os.environ['VALIDATION_OUTPUT_DIR'])
+          output.mkdir(parents=True, exist_ok=True)
+          session = Path('src/main/java/com/alibaba/qwen/code/cli/session/Session.java')
+          request = Path('src/main/java/com/alibaba/qwen/code/cli/protocol/message/control/CLIControlRequest.java')
+          originals = {path: path.read_text() for path in (session, request)}
+          unwrap = ('                        while ((cause instanceof ExecutionException || cause.getClass() == RuntimeException.class) && cause.getCause() != null) {\n'
+                    '                            cause = cause.getCause();\n'
+                    '                        }\n')
+          cases = [
+              ('subtype-guard-disabled', session,
+               '!"success".equals(response.getSubtype()) && !"error".equals(response.getSubtype())', 'false',
+               'sendsCorrelatedErrorWhenControlHandlerReturnsAnUnknownSubtype', 3),
+              ('request-id-mapping-removed', request, '    @JSONField(name = "request_id")\n', '',
+               'echoesTheDeserializedControlRequestIdInASuccessResponse', 1),
+              ('cause-unwrapping-removed', session, unwrap, '',
+               'sendsCorrelatedErrorWhenControlHandlerThrows', 1),
+          ]
+          results = []
+          try:
+              for name, path, before, after, method, expected in cases:
+                  assert originals[path].count(before) == 1, name
+                  path.write_text(originals[path].replace(before, after))
+                  reports = Path('target/surefire-reports')
+                  shutil.rmtree(reports, ignore_errors=True)
+                  command = ['mvn', '--batch-mode', '--no-transfer-progress',
+                             '-Dtest=SessionControlRequestTest#' + method, 'test']
+                  with (output / (name + '.log')).open('w') as log:
+                      run = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT)
+                  failures = []
+                  errors = []
+                  for xml in reports.glob('TEST-*.xml'):
+                      root = ET.parse(xml).getroot()
+                      for test in root.findall('testcase'):
+                          for failure in test.findall('failure'):
+                              failures.append({'name': test.attrib['name'], 'message': failure.attrib.get('message', '')})
+                          errors.extend(test.findall('error'))
+                  assert run.returncode != 0 and len(failures) == expected and not errors, (name, run.returncode, failures, errors)
+                  assert all(case['name'].startswith(method) for case in failures), failures
+                  shutil.copytree(reports, output / (name + '-reports'), dirs_exist_ok=True)
+                  result = {'mutation': name, 'exit_code': run.returncode, 'expected_failures': expected, 'failures': failures}
+                  results.append(result)
+                  print(json.dumps(result), flush=True)
+                  path.write_text(originals[path])
+          finally:
+              for path, content in originals.items():
+                  path.write_text(content)
+          (output / 'mutation-results.json').write_text(json.dumps(results, indent=2))
+          with (output / 'restored-focused.log').open('w') as log:
+              restored = subprocess.run(['mvn', '--batch-mode', '--no-transfer-progress',
+                                         '-Dtest=SessionControlRequestTest,ProcessTransportTest', 'test'],
+                                        stdout=log, stderr=subprocess.STDOUT)
+          assert restored.returncode == 0, 'Restored candidate must pass focused suites'
+          print('RESTORED_CANDIDATE_FOCUSED_PASS', flush=True)
+          PY
+          git diff --exit-code
+      - name: Preserve validation logs and test reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen-followup-17113-d4c3989ec57a0940ecf0b80d239804030067f360-attempt-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qwen-followup-validation/
+            packages/sdk-java/qwencode/target/surefire-reports/
+            packages/sdk-java/qwencode/target/checkstyle-result.xml
+            packages/sdk-java/qwencode/target/site/jacoco/
+          if-no-files-found: warn
+          retention-days: 14
+
