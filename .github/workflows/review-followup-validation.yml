@@ -40,6 +40,7 @@ jobs:
         with:
           ref: ${{ matrix.sha }}
           persist-credentials: false
+          fetch-depth: 2
       - name: Verify the tested source
         run: |
           test "$(git rev-parse HEAD)" = '${{ matrix.sha }}'
