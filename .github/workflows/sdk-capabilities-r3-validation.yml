@@ -1,0 +1,79 @@
+name: SDK capabilities fixture validation
+
+on:
+  push:
+    branches:
+      - validation/sdk-capabilities-r3-20261113
+
+permissions:
+  contents: read
+
+jobs:
+  sdk-and-workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - name: Check out the validation harness
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          path: validation-harness
+          persist-credentials: false
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: 58069518e9971bae2c989e1c99bd3e24f18b2221
+          path: source
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify the tested source
+        run: |
+          test "$(git rev-parse HEAD)" = 58069518e9971bae2c989e1c99bd3e24f18b2221
+          test "$(git rev-parse HEAD^)" = 640a94fa53f690bafea90ec4e7d30dfe542a661a
+          git show --no-patch --format=fuller HEAD
+          mkdir -p validation-evidence
+          free -h
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install locked dependencies
+        env:
+          QWEN_SKIP_PREPARE: "1"
+        run: |
+          corepack enable
+          corepack pnpm install --frozen-lockfile --reporter=append-only 2>&1 | tee validation-evidence/install.log
+      - name: Build all workspaces
+        run: npm run build 2>&1 | tee validation-evidence/full-build.log
+      - name: Check all workspace and integration types
+        run: npm run typecheck 2>&1 | tee validation-evidence/full-typecheck.log
+      - name: Check SDK API fence
+        run: npm run typecheck:public-surface --workspace=@qwen-code/sdk 2>&1 | tee validation-evidence/sdk-api-fence.log
+      - name: Run the complete SDK suite
+        working-directory: source/packages/sdk-typescript
+        run: |
+          npm run test -- --maxWorkers=2 --reporter=default --reporter=json --outputFile=../../validation-evidence/sdk-full.json 2>&1 | tee ../../validation-evidence/sdk-full.log
+      - name: Check the changed test style
+        run: |
+          node_modules/.bin/eslint packages/sdk-typescript/test/unit/negotiateTransport.test.ts --max-warnings 0 2>&1 | tee validation-evidence/lint.log
+          node_modules/.bin/prettier --check packages/sdk-typescript/test/unit/negotiateTransport.test.ts 2>&1 | tee validation-evidence/format.log
+          git diff --check
+      - name: Verify focused regressions and fixture sensitivity
+        run: |
+          python ../validation-harness/.github/validation/sdk-capabilities-r3.py --repo . --evidence validation-evidence 2>&1 | tee validation-evidence/focused-and-mutations.log
+          git diff --exit-code
+      - name: Preserve validation evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: sdk-capabilities-r3-58069518
+          path: |
+            source/validation-evidence/
+            validation-harness/.github/validation/sdk-capabilities-r3.py
+          if-no-files-found: error
+          retention-days: 14
