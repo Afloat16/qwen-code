@@ -37,44 +37,47 @@ export function useDaemonResource<T>(
   });
   const requestSeqRef = useRef(0);
 
-  const loadResource = useCallback(async (onError?: (error: Error) => void) => {
-    if (
-      !enabled ||
-      !available ||
-      (controller && controller.getSnapshot() !== 'available')
-    )
-      return undefined;
-    const seq = ++requestSeqRef.current;
-    setState((current) => ({
-      ...current,
-      loading: true,
-      error: undefined,
-    }));
-    try {
-      const data = await load();
-      if (seq !== requestSeqRef.current) return undefined;
-      setState({ data, loading: false, error: undefined });
-      return data;
-    } catch (error) {
-      if (seq !== requestSeqRef.current) return undefined;
+  const loadResource = useCallback(
+    async (onError?: (error: Error) => void) => {
       if (
-        isDaemonUnavailableError(error) ||
+        !enabled ||
+        !available ||
         (controller && controller.getSnapshot() !== 'available')
-      ) {
-        setState((current) => ({ ...current, loading: false }));
+      )
         return undefined;
-      }
-      const normalized =
-        error instanceof Error ? error : new Error(String(error));
-      onError?.(normalized);
+      const seq = ++requestSeqRef.current;
       setState((current) => ({
         ...current,
-        loading: false,
-        error: normalized,
+        loading: true,
+        error: undefined,
       }));
-      return undefined;
-    }
-  }, [available, controller, enabled, load]);
+      try {
+        const data = await load();
+        if (seq !== requestSeqRef.current) return undefined;
+        setState({ data, loading: false, error: undefined });
+        return data;
+      } catch (error) {
+        if (seq !== requestSeqRef.current) return undefined;
+        if (
+          isDaemonUnavailableError(error) ||
+          (controller && controller.getSnapshot() !== 'available')
+        ) {
+          setState((current) => ({ ...current, loading: false }));
+          return undefined;
+        }
+        const normalized =
+          error instanceof Error ? error : new Error(String(error));
+        onError?.(normalized);
+        setState((current) => ({
+          ...current,
+          loading: false,
+          error: normalized,
+        }));
+        return undefined;
+      }
+    },
+    [available, controller, enabled, load],
+  );
 
   const reload = useCallback(() => loadResource(), [loadResource]);
 

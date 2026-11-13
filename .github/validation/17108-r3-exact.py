@@ -95,7 +95,7 @@ try:
         restore()
 
     try:
-        replace_once(resource, "      onError?.(normalized);\n", "")
+        replace_once(resource, "        onError?.(normalized);\n", "")
         run("mutation-producer-error", [refresh_test, resource_test], 0, 2,
             "reports a list-load error to both|keeps errors specific to each reload outcome", {
                 "reports a list-load error": 1, "keeps errors specific": 1,

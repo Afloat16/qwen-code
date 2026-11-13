@@ -21,7 +21,7 @@ jobs:
     env:
       CI: 'true'
       NODE_OPTIONS: --max-old-space-size=6144
-      SOURCE_SHA: 111ec89192c4f045854af60111fa7872312d5859
+      SOURCE_SHA: caa528f0d4dcccf5521971d902257c3ecdeed8cd
     steps:
       - name: Check out validation scripts
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: Afloat16/qwen-code
-          ref: 111ec89192c4f045854af60111fa7872312d5859
+          ref: caa528f0d4dcccf5521971d902257c3ecdeed8cd
           path: source
           persist-credentials: false
           fetch-depth: 2
@@ -41,7 +41,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/qwen17108-r3-exact"
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-          test "$(git rev-parse 'HEAD^{tree}')" = 3194e3a40eaea5ce056f058cef88ef9473fb6501
+          test "$(git rev-parse 'HEAD^{tree}')" = 7aa78313c8489ed31b7e8d9e0a4b0ce1763a608e
           test "$(git rev-parse HEAD^)" = eedc5dc22d7b67d4b6210088b277ede7347e3181
           git show --no-patch --format=fuller HEAD | tee "$RUNNER_TEMP/qwen17108-r3-exact/source.log"
           git diff --check HEAD^ HEAD
@@ -93,7 +93,7 @@ jobs:
           git diff --exit-code
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           test "$(git hash-object packages/web-shell/client/components/messages/MemoryMessage.tsx)" = 81cef3493a6b66e4570784b4b0f83c147dfaac2a
-          test "$(git hash-object packages/web-shell/client/daemon/workspace/hooks/useDaemonResource.ts)" = e8246708f6ff14775ee208cef686888556ec8b42
+          test "$(git hash-object packages/web-shell/client/daemon/workspace/hooks/useDaemonResource.ts)" = 0c9bb5d5954d652e8a0452f90e0a2b1051911475
       - name: Preserve exact candidate evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
