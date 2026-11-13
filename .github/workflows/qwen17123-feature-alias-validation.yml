@@ -1,0 +1,95 @@
+name: Qwen 17123 feature alias validation
+
+on:
+  push:
+    branches:
+      - validation/qwen17123-feature-alias-20261113
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Exact candidate build, types, and alias regressions
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      CI: 'true'
+      NODE_OPTIONS: --max-old-space-size=6144
+      CANDIDATE_SHA: c1234bd03dd9ae74d52448628c6b7e5f474ec272
+      CANDIDATE_TREE: 71d5b1eaddae1ddde58194c070486deebe42075a
+      EXPECTED_FOCUSED_TEST_COUNT: '203'
+    steps:
+      - name: Check out the validation scripts
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          path: verification
+          persist-credentials: false
+          sparse-checkout: .github/validation
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: c1234bd03dd9ae74d52448628c6b7e5f474ec272
+          path: source
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify the source and preserve the reproduction fixture
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen-r1-3-validation"
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$CANDIDATE_TREE"
+          test "$(git rev-parse HEAD^)" = 9fe37b8653a312b200f95b8d57cca763d414e025
+          git show --no-patch --format=fuller HEAD > "$RUNNER_TEMP/qwen-r1-3-validation/source.log"
+          git diff --check HEAD^ HEAD
+          cp ../verification/.github/validation/qwen17123-alias-validate.py "$RUNNER_TEMP/qwen-r1-3-validation/"
+          cp ../verification/.github/validation/qwen17123-alias-real-readers.test.ts "$RUNNER_TEMP/qwen-r1-3-validation/"
+          cp ../verification/.github/validation/qwen17123-alias-local-build-record.json "$RUNNER_TEMP/qwen-r1-3-validation/"
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install locked dependencies
+        env:
+          QWEN_SKIP_PREPARE: '1'
+        run: |
+          corepack enable
+          {
+            node --version
+            corepack pnpm --version
+            corepack pnpm install --frozen-lockfile --reporter=append-only
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-r1-3-validation/install.log"
+      - name: Build all workspaces
+        id: build
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/qwen-r1-3-validation/build.log"
+      - name: Check all workspace and integration types
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/qwen-r1-3-validation/typecheck.log"
+      - name: Check changed TypeScript and documentation
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          files=(
+            packages/cli/src/config/migration/versions/v1-to-v2.ts
+            packages/cli/src/config/migration/versions/v1-to-v2.test.ts
+            packages/cli/src/config/daemon-trust-policy.test.ts
+            packages/cli/src/serve/fast-path-settings.ts
+            packages/cli/src/serve/fast-path.test.ts
+          )
+          corepack pnpm exec eslint "${files[@]}" --max-warnings 0
+          corepack pnpm exec prettier --check "${files[@]}" docs/users/configuration/settings.md
+      - name: Verify candidate regressions and reproduce the parent failures
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: python3 ../verification/.github/validation/qwen17123-alias-validate.py
+      - name: Preserve validation logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen17123-feature-alias-${{ env.CANDIDATE_SHA }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qwen-r1-3-validation/
+          if-no-files-found: error
+          retention-days: 14

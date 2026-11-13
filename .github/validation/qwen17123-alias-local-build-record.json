@@ -1,0 +1,11 @@
+{
+  "phase": "pre-fix local baseline build",
+  "parent": "9fe37b8653a312b200f95b8d57cca763d414e025",
+  "command": "npm run build",
+  "node": "24.22.1",
+  "result": "not passed",
+  "failure": "packages/cli tsc --build was Killed with status 137; no TypeScript diagnostic was printed",
+  "context": "Focused Vitest was also running on the same host at that time. No claim about the candidate source is inferred from this termination.",
+  "evidence_log": "qwen17123-alias-baseline-build.log",
+  "next_gate": "Separate hosted job runs the standard full build, full workspace/integration typecheck, and focused regressions sequentially on the exact candidate."
+}
