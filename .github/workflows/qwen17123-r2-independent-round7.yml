@@ -1,0 +1,78 @@
+name: Qwen 17123 R2 independent reader reproduction
+
+on:
+  push:
+    branches:
+      - validation/qwen17123-r2-independent-round7-20261113
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    name: Exact f385 real reader baseline
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      CI: 'true'
+      NODE_OPTIONS: --max-old-space-size=6144
+      SOURCE_SHA: f38593c135e451e180fcca8cbac245c727c501ae
+      EXPECT_READER_RESULT: baseline
+    steps:
+      - name: Check out independent fixtures
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          path: verification
+          persist-credentials: false
+          sparse-checkout: .github/validation
+      - name: Check out exact unmodified baseline
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: f38593c135e451e180fcca8cbac245c727c501ae
+          path: source
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Record baseline and global CLI availability
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen17123-r2-independent"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = adc00ab0f9c7e30da27e9a8b9ba401257683e74c
+          git show --no-patch --format=fuller HEAD > "$RUNNER_TEMP/qwen17123-r2-independent/source.log"
+          set +e
+          qwen --version > "$RUNNER_TEMP/qwen17123-r2-independent/global-qwen.log" 2>&1
+          cli_exit=$?
+          set -e
+          printf '%s\n' "$cli_exit" > "$RUNNER_TEMP/qwen17123-r2-independent/global-qwen-exit.txt"
+          cat "$RUNNER_TEMP/qwen17123-r2-independent/global-qwen.log"
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install exact locked dependencies
+        env:
+          QWEN_SKIP_PREPARE: '1'
+        run: |
+          corepack enable
+          {
+            node --version
+            corepack pnpm --version
+            corepack pnpm install --frozen-lockfile --reporter=append-only
+          } 2>&1 | tee "$RUNNER_TEMP/qwen17123-r2-independent/install.log"
+      - name: Build workspace test prerequisites
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/qwen17123-r2-independent/build.log"
+      - name: Reproduce through four real settings readers
+        run: python3 ../verification/.github/validation/17123-r2-independent.py
+      - name: Preserve independent observations
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen17123-r2-independent-baseline-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qwen17123-r2-independent/
+          if-no-files-found: error
+          retention-days: 14
