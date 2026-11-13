@@ -1074,6 +1074,7 @@ describe('runCliEntry', () => {
         '--telemetry-outfile',
         'server.log',
         'alpine',
+        '0x10',
       ];
 
       await runCliEntry([
@@ -1144,6 +1145,7 @@ describe('runCliEntry', () => {
 
     expect(process.exitCode).toBe(1);
     expect(stderr.join('')).toContain('Unknown argument: unknown');
+    expect(stdout.join('')).toContain('Usage: qwen mcp');
     expect(mocks.mcpListHandler).not.toHaveBeenCalled();
     expect(mocks.main).not.toHaveBeenCalled();
   });
