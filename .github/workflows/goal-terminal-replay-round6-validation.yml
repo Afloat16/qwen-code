@@ -1,0 +1,127 @@
+name: Goal terminal replay round6 validation
+
+on:
+  push:
+    branches:
+      - validation/goal-terminal-replay-round6-20261113
+
+permissions:
+  contents: read
+
+jobs:
+  bridge-and-workspace:
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI: "true"
+      NODE_OPTIONS: --max-old-space-size=6144
+      CANDIDATE_SHA: 65d05b504e17005451a38c2a7fcfe80121fa3c10
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: 65d05b504e17005451a38c2a7fcfe80121fa3c10
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify and record the tested source
+        run: |
+          mkdir -p "$RUNNER_TEMP/goal-terminal-replay-validation"
+          {
+            test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+            git show --no-patch --format=fuller HEAD
+            git diff --stat HEAD^ HEAD
+            git diff --check HEAD^ HEAD
+          } 2>&1 | tee "$RUNNER_TEMP/goal-terminal-replay-validation/source.log"
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install locked dependencies
+        env:
+          QWEN_SKIP_PREPARE: "1"
+        run: |
+          corepack enable
+          {
+            node --version
+            corepack pnpm --version
+            corepack pnpm install --frozen-lockfile --reporter=append-only
+          } 2>&1 | tee "$RUNNER_TEMP/goal-terminal-replay-validation/install.log"
+      - name: Build all workspaces
+        id: build
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/goal-terminal-replay-validation/build.log"
+      - name: Check all workspace and integration types
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/goal-terminal-replay-validation/typecheck.log"
+      - name: Build the CLI bundle
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run bundle 2>&1 | tee "$RUNNER_TEMP/goal-terminal-replay-validation/bundle.log"
+      - name: Check changed source formatting and lint
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          {
+            corepack pnpm exec prettier --check packages/acp-bridge/src/bridgeClient.ts packages/acp-bridge/src/active-load-replay.test.ts
+            corepack pnpm exec eslint packages/acp-bridge/src/bridgeClient.ts packages/acp-bridge/src/active-load-replay.test.ts
+          } 2>&1 | tee "$RUNNER_TEMP/goal-terminal-replay-validation/lint.log"
+      - name: Verify the regression rejects the original terminal handler
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, os, subprocess, xml.etree.ElementTree as ET
+          repo = Path.cwd()
+          evidence = Path(os.environ['RUNNER_TEMP']) / 'goal-terminal-replay-validation'
+          relative_source = 'packages/acp-bridge/src/bridgeClient.ts'
+          source = repo / relative_source
+          original = source.read_text()
+          baseline = subprocess.check_output(['git','show','HEAD^:'+relative_source], text=True)
+          assert baseline != original
+          command = ['corepack','pnpm','exec','vitest','run','src/active-load-replay.test.ts','--retry=0','--maxWorkers=1','--minWorkers=1']
+          def run(name):
+            with (evidence/(name+'.log')).open('w') as out:
+              result = subprocess.run(command, cwd=repo/'packages/acp-bridge', stdout=out, stderr=subprocess.STDOUT, timeout=120)
+            report = repo / 'packages/acp-bridge/junit.xml'
+            (evidence/(name+'.xml')).write_bytes(report.read_bytes())
+            root = ET.parse(report).getroot()
+            failures = [{'test':case.attrib.get('name'),'message':failure.attrib.get('message')} for case in root.iter('testcase') for failure in case.findall('failure')]
+            observation = {'name':name,'exit_code':result.returncode,'failures':failures}
+            print(json.dumps(observation), flush=True)
+            return observation
+          control = run('focused-candidate')
+          assert control['exit_code'] == 0
+          try:
+            source.write_text(baseline)
+            mutation = run('original-handler')
+            assert mutation['exit_code'] == 1 and len(mutation['failures']) == 1, mutation
+            assert 'expected +0 to be 1' in mutation['failures'][0]['message'], mutation
+            log = (evidence/'original-handler.log').read_text()
+            assert 'Test timed out' not in log and 'Unhandled Errors' not in log, mutation
+          finally:
+            source.write_text(original)
+          restored = run('focused-restored')
+          assert restored['exit_code'] == 0
+          (evidence/'counterfactual.json').write_text(json.dumps({'candidate':control,'original_handler':mutation,'restored':restored},indent=2)+'\n')
+          subprocess.run(['git','diff','--exit-code','--',relative_source], check=True)
+          PY
+      - name: Run the complete ACP bridge suite
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        working-directory: packages/acp-bridge
+        run: corepack pnpm exec vitest run --maxWorkers=1 --minWorkers=1 --retry=0 2>&1 | tee "$RUNNER_TEMP/goal-terminal-replay-validation/bridge-suite.log"
+      - name: Collect the full ACP bridge JUnit report
+        if: always()
+        run: |
+          if [ -f packages/acp-bridge/junit.xml ]; then
+            cp packages/acp-bridge/junit.xml "$RUNNER_TEMP/goal-terminal-replay-validation/bridge-suite.xml"
+          fi
+      - name: Preserve validation logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: goal-terminal-replay-round6-65d05b504e17005451a38c2a7fcfe80121fa3c10-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/goal-terminal-replay-validation/
+          if-no-files-found: warn
+          retention-days: 14
