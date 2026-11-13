@@ -56,8 +56,9 @@ jobs:
         run: |
           corepack enable
           corepack pnpm install --frozen-lockfile --reporter=append-only
-      - name: Build only the missing browser daemon SDK prerequisite
+      - name: Build the exact runtime prerequisites for the browser daemon SDK
         run: |
+          corepack pnpm exec esbuild packages/acp-bridge/src/daemonEventTypes.ts packages/acp-bridge/src/mcpTimeouts.ts packages/acp-bridge/src/channel-control-timeouts.ts packages/acp-bridge/src/bridgeTypes.ts --bundle --format=esm --platform=browser --target=es2022 --outdir=packages/acp-bridge/dist
           corepack pnpm exec esbuild packages/sdk-typescript/src/daemon/index.ts --bundle --format=esm --platform=browser --target=es2022 --outfile=packages/sdk-typescript/dist/daemon/index.js --minify --legal-comments=none --tree-shaking=true
           test -s packages/sdk-typescript/dist/daemon/index.js
           git diff --exit-code
