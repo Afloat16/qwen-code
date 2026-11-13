@@ -19,7 +19,6 @@ jobs:
     env:
       MAVEN_OPTS: -Xmx512m
       JAVA_TOOL_OPTIONS: -Xmx512m
-      MAVEN_ARGS: '--settings ${{ runner.temp }}/setup-java-m2/settings.xml --toolchains ${{ runner.temp }}/setup-java-m2/toolchains.xml'
     steps:
       - name: Check out the exact candidate
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -37,6 +36,8 @@ jobs:
           distribution: temurin
           java-version: '21'
           settings-path: '${{ runner.temp }}/setup-java-m2'
+      - name: Use isolated Maven settings
+        run: echo "MAVEN_ARGS=--settings $RUNNER_TEMP/setup-java-m2/settings.xml --toolchains $RUNNER_TEMP/setup-java-m2/toolchains.xml" >> "$GITHUB_ENV"
       - name: Compile with Java 11 release and run the complete client class
         id: positive
         run: |
