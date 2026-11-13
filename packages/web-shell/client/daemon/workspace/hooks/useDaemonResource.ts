@@ -24,6 +24,7 @@ export function useDaemonResource<T>(
   reloadWithOutcome: () => Promise<{
     data: T | undefined;
     superseded: boolean;
+    error?: Error;
   }>;
 } {
   const { autoLoad = false, enabled = true } = options;
@@ -36,7 +37,7 @@ export function useDaemonResource<T>(
   });
   const requestSeqRef = useRef(0);
 
-  const reload = useCallback(async (): Promise<T | undefined> => {
+  const loadResource = useCallback(async (onError?: (error: Error) => void) => {
     if (
       !enabled ||
       !available ||
@@ -65,6 +66,7 @@ export function useDaemonResource<T>(
       }
       const normalized =
         error instanceof Error ? error : new Error(String(error));
+      onError?.(normalized);
       setState((current) => ({
         ...current,
         loading: false,
@@ -74,12 +76,17 @@ export function useDaemonResource<T>(
     }
   }, [available, controller, enabled, load]);
 
+  const reload = useCallback(() => loadResource(), [loadResource]);
+
   const reloadWithOutcome = useCallback(async () => {
-    const pending = reload();
+    let error: Error | undefined;
+    const pending = loadResource((caught) => {
+      error = caught;
+    });
     const requestSeq = requestSeqRef.current;
     const data = await pending;
-    return { data, superseded: requestSeq !== requestSeqRef.current };
-  }, [reload]);
+    return { data, superseded: requestSeq !== requestSeqRef.current, error };
+  }, [loadResource]);
 
   useEffect(() => {
     if (!autoLoad || !enabled) return;
