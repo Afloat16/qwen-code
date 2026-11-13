@@ -1,0 +1,43 @@
+{
+  "records": [
+    {
+      "package": "packages/core",
+      "source_tree": "6e3f0f62c70a52909ef7daa4a31262e50dc31217",
+      "reference_checkout": "/workspace/scratch/2d524b759857/qwen17108-followup-20261113",
+      "reference_head": "57a7e226617c0ef376a21205651b0c246007fabc",
+      "copied_dist": "/workspace/scratch/2d524b759857/qwen17108-followup-20261113/packages/core/dist"
+    },
+    {
+      "package": "packages/acp-bridge",
+      "source_tree": "9bdc6ceff6d25831eaafd435e5382b22e34cc872",
+      "reference_checkout": "/workspace/scratch/2d524b759857/qwen17108-followup-20261113",
+      "reference_head": "57a7e226617c0ef376a21205651b0c246007fabc",
+      "copied_dist": "/workspace/scratch/2d524b759857/qwen17108-followup-20261113/packages/acp-bridge/dist"
+    }
+  ],
+  "scope": "Dependency build outputs reused only for source-unit test prerequisites after local standard build ended Killed/status137. Exact-candidate full build remains required in hosted validation.",
+  "matching_build_and_lock_config": {
+    "package.json": "24e26197bababfb6506402c12861b87409cb8974",
+    "pnpm-lock.yaml": "4a52b33a84d0cb86cf743f5e6f893f3281c40f96",
+    "scripts/build.js": "b935415598a52c33e63b499b2cff70187973ecbb",
+    "scripts/build_package.js": "235afcc75a57a924f2a6035e6377fddab6ece3d5"
+  },
+  "initial_unit_collection": {
+    "exit_code": 1,
+    "reason": "No tests ran because web-templates dist prerequisite was not yet built; globalSetup guard remained enabled."
+  },
+  "standard_build": {
+    "exit_code": 1,
+    "inner_status": 137,
+    "stage": "packages/core: tsc --build",
+    "diagnostic": "Killed",
+    "log": "qwen17120-r2-local-build.log",
+    "full_build_passed": false
+  },
+  "web_templates_attempt": {
+    "exit_code": 1,
+    "reason": "Earlier interrupted standard build had not produced web-shell/dist/transcript.js; no test ran.",
+    "log": "qwen17120-r2-web-templates-build.log"
+  },
+  "unit_status": "Not run locally; globalSetup remained enabled and blocked on missing web-templates prerequisite. Exact candidate hosted verification is required."
+}
