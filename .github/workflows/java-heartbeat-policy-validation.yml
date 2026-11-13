@@ -1,0 +1,119 @@
+name: Java heartbeat policy validation
+
+on:
+  push:
+    branches:
+      - validation/java-heartbeat-policy-20261113
+
+permissions:
+  contents: read
+
+jobs:
+  heartbeat-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+        working-directory: packages/sdk-java/qwencode
+    env:
+      MAVEN_OPTS: -Xmx512m
+      JAVA_TOOL_OPTIONS: -Xmx512m
+      MAVEN_ARGS: '--settings ${{ runner.temp }}/setup-java-m2/settings.xml --toolchains ${{ runner.temp }}/setup-java-m2/toolchains.xml'
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: 3ffeb9a8e1c665d568e104644fce6816567fcc46
+          persist-credentials: false
+      - name: Verify the tested source
+        run: |
+          test "$(git rev-parse HEAD)" = 3ffeb9a8e1c665d568e104644fce6816567fcc46
+          git show --no-patch --format=fuller HEAD
+          mkdir -p "$GITHUB_WORKSPACE/validation-logs"
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with:
+          distribution: temurin
+          java-version: '21'
+          settings-path: '${{ runner.temp }}/setup-java-m2'
+      - name: Compile with Java 11 release and run the complete client class
+        id: positive
+        run: |
+          java -version
+          mvn -version
+          mvn --batch-mode --no-transfer-progress -Dtest=HostedHarnessClientTest test 2>&1 | tee "$GITHUB_WORKSPACE/validation-logs/positive.log"
+          cp target/surefire-reports/TEST-com.alibaba.qwen.code.daemon.HostedHarnessClientTest.xml "$GITHUB_WORKSPACE/validation-logs/positive.xml"
+      - name: Check Java style
+        if: ${{ !cancelled() && steps.positive.outcome == 'success' }}
+        run: mvn --batch-mode --no-transfer-progress checkstyle:check 2>&1 | tee "$GITHUB_WORKSPACE/validation-logs/checkstyle.log"
+      - name: Prove production scheduler policy is covered
+        if: ${{ !cancelled() && steps.positive.outcome == 'success' }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('src/main/java/com/alibaba/qwen/code/daemon/HostedHarnessClient.java')
+          source = path.read_text()
+          needle = '        this.scheduler.setRemoveOnCancelPolicy(true);\n'
+          assert source.count(needle) == 1
+          path.write_text(source.replace(needle, ''))
+          PY
+          set +e
+          mvn --batch-mode --no-transfer-progress '-Dtest=HostedHarnessClientTest#cancelsHeartbeatWhenDeletionRacesTaskPublication+removesHeartbeatFromProductionSchedulerAfterDeletion' test > "$GITHUB_WORKSPACE/validation-logs/policy-mutation.log" 2>&1
+          mutation_status=$?
+          set -e
+          cat "$GITHUB_WORKSPACE/validation-logs/policy-mutation.log"
+          test "$mutation_status" -ne 0
+          python3 - <<'PY'
+          from pathlib import Path
+          import os, shutil, xml.etree.ElementTree as ET
+          report = Path('target/surefire-reports/TEST-com.alibaba.qwen.code.daemon.HostedHarnessClientTest.xml')
+          root = ET.parse(report).getroot()
+          assert (root.get('tests'), root.get('failures'), root.get('errors'), root.get('skipped')) == ('3', '3', '0', '0'), root.attrib
+          real = next(case for case in root.findall('testcase') if case.get('name') == 'removesHeartbeatFromProductionSchedulerAfterDeletion')
+          assert 'production scheduler must release' in real.find('failure').get('message')
+          shutil.copy(report, Path(os.environ['GITHUB_WORKSPACE']) / 'validation-logs/policy-mutation.xml')
+          print('Expected mutation confirmed: 3 tests failed, including the real scheduler queue assertion.')
+          PY
+          git restore --source=HEAD -- src/main/java/com/alibaba/qwen/code/daemon/HostedHarnessClient.java
+      - name: Prove the publication race guard is covered
+        if: ${{ !cancelled() && steps.positive.outcome == 'success' }}
+        run: |
+          git restore --source=HEAD -- src/main/java/com/alibaba/qwen/code/daemon/HostedHarnessClient.java
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('src/main/java/com/alibaba/qwen/code/daemon/HostedHarnessClient.java')
+          source = path.read_text()
+          needle = '            if (replacement.cancelled.get()) {\n                task.cancel(false);\n            }\n'
+          assert source.count(needle) == 1
+          path.write_text(source.replace(needle, ''))
+          PY
+          set +e
+          mvn --batch-mode --no-transfer-progress '-Dtest=HostedHarnessClientTest#cancelsHeartbeatWhenDeletionRacesTaskPublication+removesHeartbeatFromProductionSchedulerAfterDeletion' test > "$GITHUB_WORKSPACE/validation-logs/publication-mutation.log" 2>&1
+          mutation_status=$?
+          set -e
+          cat "$GITHUB_WORKSPACE/validation-logs/publication-mutation.log"
+          test "$mutation_status" -ne 0
+          python3 - <<'PY'
+          from pathlib import Path
+          import os, shutil, xml.etree.ElementTree as ET
+          report = Path('target/surefire-reports/TEST-com.alibaba.qwen.code.daemon.HostedHarnessClientTest.xml')
+          root = ET.parse(report).getroot()
+          assert (root.get('tests'), root.get('failures'), root.get('errors'), root.get('skipped')) == ('3', '1', '0', '0'), root.attrib
+          failed = [case for case in root.findall('testcase') if case.find('failure') is not None]
+          assert 'cancelsHeartbeatWhenDeletionRacesTaskPublication' in failed[0].get('name')
+          shutil.copy(report, Path(os.environ['GITHUB_WORKSPACE']) / 'validation-logs/publication-mutation.xml')
+          print('Expected mutation confirmed: the publication race failed; both sequential controls passed.')
+          PY
+          git restore --source=HEAD -- src/main/java/com/alibaba/qwen/code/daemon/HostedHarnessClient.java
+          git diff --exit-code
+      - name: Preserve validation logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: java-heartbeat-policy-3ffeb9a8
+          path: |
+            validation-logs/
+            packages/sdk-java/qwencode/target/surefire-reports/
+          if-no-files-found: warn
+          retention-days: 14
