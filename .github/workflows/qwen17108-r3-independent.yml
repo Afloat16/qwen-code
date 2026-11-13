@@ -18,8 +18,8 @@ jobs:
     env:
       CI: 'true'
       NODE_OPTIONS: --max-old-space-size=4096
-      SOURCE_SHA: 111ec89192c4f045854af60111fa7872312d5859
-      SOURCE_TREE: 3194e3a40eaea5ce056f058cef88ef9473fb6501
+      SOURCE_SHA: caa528f0d4dcccf5521971d902257c3ecdeed8cd
+      SOURCE_TREE: 7aa78313c8489ed31b7e8d9e0a4b0ce1763a608e
     steps:
       - name: Check out independent scripts
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: Afloat16/qwen-code
-          ref: 111ec89192c4f045854af60111fa7872312d5859
+          ref: caa528f0d4dcccf5521971d902257c3ecdeed8cd
           path: source
           persist-credentials: false
       - name: Record source and global CLI availability
