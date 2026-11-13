@@ -23,4 +23,13 @@ All four production file SHA256 values and the complete tracked diff match befor
 
 ## Verification report
 
-Pending the same unchanged fixture against the owner's exact candidate.
+**Status**: VERIFIED_FIXED
+**Method**: the same unchanged five-case test-script fixture and standard web-shell Vitest configuration
+**Run**: https://github.com/Afloat16/qwen-code/actions/runs/43457763629 (job 131996318491)
+**Source**: exact 111ec89192c4f045854af60111fa7872312d5859, tree 3194e3a40eaea5ce056f058cef88ef9473fb6501
+
+All five cases passed with zero skipped cases, failures, or runtime errors. The list failure now sends its real cause to the transcript. Superseded resolve/reject clicks report a retryable error without re-reading stale content; a subsequent uncontended click reads once and restores editing and success confirmation. The existing unavailable generic feedback and ordinary recovery controls still pass. No write operation occurs in any case.
+
+Production hashes and the full tracked diff are unchanged before/after, and the temporary test was removed. MemoryMessage SHA256: 3c1cbaa812cde7eb9a26232d68fa5183a299b6b44c5e77456a16f03ba7ff5bbb. useDaemonResource SHA256: ec31e75f9c21bab4b5358664054481c99452f733c3e4c3470a37f03071fbf300. The memory/event hooks retain their baseline hashes. This independent source fixture does not claim full repository build/typecheck/bundle or browser E2E; the owner runs those exact-candidate gates separately.
+
+The final four-file candidate diff was also reviewed read-only: errors are captured per load invocation, the original reload return contract is preserved, and superseded feedback remains behind both existing component sequence guards. No blocker was found in this bounded review.
