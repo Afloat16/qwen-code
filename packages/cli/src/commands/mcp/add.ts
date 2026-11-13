@@ -229,6 +229,7 @@ export const addCommand: CommandModule = {
         type: 'string',
         demandOption: true,
       })
+      .positional('args', { type: 'string' })
       .option('scope', {
         alias: 's',
         describe: 'Configuration scope (user or project)',
