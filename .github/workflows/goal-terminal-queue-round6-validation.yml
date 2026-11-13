@@ -1,0 +1,202 @@
+name: Goal terminal queue round6 validation
+
+on:
+  push:
+    branches:
+      - validation/goal-terminal-queue-round6-20261113
+
+permissions:
+  contents: read
+
+jobs:
+  bridge-and-workspace:
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI: "true"
+      NODE_OPTIONS: --max-old-space-size=6144
+      CANDIDATE_SHA: 7c16962f5ed04d61eff25accadc105e18be6cb34
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: 7c16962f5ed04d61eff25accadc105e18be6cb34
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify and record the tested source
+        run: |
+          mkdir -p "$RUNNER_TEMP/goal-terminal-queue-validation"
+          {
+            test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+            git show --no-patch --format=fuller HEAD
+            git diff --stat HEAD^ HEAD
+            git diff --check HEAD^ HEAD
+          } 2>&1 | tee "$RUNNER_TEMP/goal-terminal-queue-validation/source.log"
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install locked dependencies
+        env:
+          QWEN_SKIP_PREPARE: "1"
+        run: |
+          corepack enable
+          {
+            node --version
+            corepack pnpm --version
+            corepack pnpm install --frozen-lockfile --reporter=append-only
+          } 2>&1 | tee "$RUNNER_TEMP/goal-terminal-queue-validation/install.log"
+      - name: Build all workspaces
+        id: build
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/goal-terminal-queue-validation/build.log"
+      - name: Check all workspace and integration types
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/goal-terminal-queue-validation/typecheck.log"
+      - name: Build the CLI bundle
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run bundle 2>&1 | tee "$RUNNER_TEMP/goal-terminal-queue-validation/bundle.log"
+      - name: Check changed source formatting and lint
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          {
+            corepack pnpm exec prettier --check packages/acp-bridge/src/bridgeClient.ts packages/acp-bridge/src/bridge.test.ts
+            corepack pnpm exec eslint --max-warnings 0 packages/acp-bridge/src/bridgeClient.ts packages/acp-bridge/src/bridge.test.ts
+          } 2>&1 | tee "$RUNNER_TEMP/goal-terminal-queue-validation/lint.log"
+      - name: Verify queue regressions against the parent and targeted mutations
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          python3 - <<'PY'
+          import sys, os
+          sys.argv = ['verify-counterfactual', '--hosted', '--evidence', os.path.join(os.environ['RUNNER_TEMP'], 'goal-terminal-queue-validation')]
+          from pathlib import Path
+          import argparse
+          import hashlib
+          import json
+          import subprocess
+          
+          parser = argparse.ArgumentParser()
+          parser.add_argument('--repo', type=Path, default=Path.cwd())
+          parser.add_argument('--evidence', type=Path, required=True)
+          parser.add_argument('--hosted', action='store_true')
+          args = parser.parse_args()
+          repo = args.repo.resolve()
+          evidence = args.evidence.resolve()
+          evidence.mkdir(parents=True, exist_ok=True)
+          relative_source = 'packages/acp-bridge/src/bridgeClient.ts'
+          relative_test = 'packages/acp-bridge/src/bridge.test.ts'
+          source = repo / relative_source
+          test = repo / relative_test
+          original = source.read_text()
+          original_test = test.read_bytes()
+          original_diff = subprocess.check_output(['git', 'diff', '--', relative_source, relative_test], cwd=repo)
+          parent_sha = '65d05b504e17005451a38c2a7fcfe80121fa3c10'
+          settle = '        this.onAutomaticTurnEnded?.(sessionId);\n'
+          sequence = '        entry.goalTurnActive = false;\n' + settle
+          assert original.count(sequence) == 1
+          results = {}
+          
+          
+          def run(name, expected_failed, expected_labels):
+              report_path = evidence / (name + '.json')
+              command = [
+                  'corepack', 'pnpm', 'exec', 'vitest', 'run', 'src/bridge.test.ts',
+                  '-t', 'promotes what the ending Goal turn never drained',
+                  '--maxWorkers=1', '--minWorkers=1', '--retry=0',
+                  '--reporter=default', '--reporter=json',
+                  '--outputFile.json=' + str(report_path),
+              ]
+              log_path = evidence / (name + '.log')
+              with log_path.open('w') as output:
+                  result = subprocess.run(command, cwd=repo / 'packages/acp-bridge', stdout=output,
+                                          stderr=subprocess.STDOUT, timeout=180)
+              report = json.loads(report_path.read_text())
+              executed = [case for suite in report['testResults'] for case in suite['assertionResults']
+                          if case['status'] in ('passed', 'failed')]
+              failures = [case for case in executed if case['status'] == 'failed']
+              observation = {
+                  'name': name, 'exit_code': result.returncode,
+                  'passed': report['numPassedTests'], 'failed': report['numFailedTests'],
+                  'filtered': report['numPendingTests'],
+                  'selected_cases': [{'name': case['fullName'], 'status': case['status'],
+                                      'failure_messages': case.get('failureMessages', [])}
+                                     for case in executed],
+              }
+              results[name] = observation
+              print(json.dumps(observation), flush=True)
+              assert result.returncode == (1 if expected_failed else 0), observation
+              assert len(executed) == 3, observation
+              assert report['numFailedTests'] == expected_failed, observation
+              assert report['numPassedTests'] == 3 - expected_failed, observation
+              assert len(failures) == expected_failed, observation
+              assert report.get('numRuntimeErrorTestSuites', 0) == 0, observation
+              for label in expected_labels:
+                  assert sum(label in case['fullName'] for case in failures) == 1, observation
+              for case in failures:
+                  assert any('AssertionError: expected [] to deeply equal' in message
+                             for message in case.get('failureMessages', [])), observation
+              log = log_path.read_text()
+              assert 'Test timed out' not in log and 'Unhandled Errors' not in log, observation
+              return observation
+          
+          
+          try:
+              if args.hosted:
+                  assert subprocess.check_output(['git', 'rev-parse', 'HEAD^'], cwd=repo, text=True).strip() == parent_sha
+                  run('candidate-selected', 0, [])
+                  source.write_text(subprocess.check_output(['git', 'show', parent_sha + ':' + relative_source], cwd=repo, text=True))
+                  run('parent-selected', 2, ['empty', 'oversized'])
+                  source.write_text(original)
+              source.write_text(original.replace(sequence, '        entry.goalTurnActive = false;\n', 1))
+              run('settle-removed', 3, ['valid', 'empty', 'oversized'])
+              source.write_text(original.replace(sequence, settle + '        entry.goalTurnActive = false;\n', 1))
+              run('settle-before-clear', 3, ['valid', 'empty', 'oversized'])
+          finally:
+              source.write_text(original)
+              assert test.read_bytes() == original_test
+              assert subprocess.check_output(['git', 'diff', '--', relative_source, relative_test], cwd=repo) == original_diff
+              (evidence / 'counterfactual-results.json').write_text(json.dumps({
+                  'parent': parent_sha,
+                  'source_restored': source.read_text() == original,
+                  'test_unchanged': test.read_bytes() == original_test,
+                  'source_sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
+                  'test_sha256': hashlib.sha256(test.read_bytes()).hexdigest(),
+                  'results': results,
+              }, indent=2) + '\n')
+          
+          run('restored-selected', 0, [])
+          if args.hosted:
+              subprocess.run(['git', 'diff', '--exit-code', '--', relative_source, relative_test], cwd=repo, check=True)
+          (evidence / 'counterfactual-results.json').write_text(json.dumps({
+              'parent': parent_sha,
+              'source_restored': source.read_text() == original,
+              'test_unchanged': test.read_bytes() == original_test,
+              'source_sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
+              'test_sha256': hashlib.sha256(test.read_bytes()).hexdigest(),
+              'results': results,
+          }, indent=2) + '\n')
+          print('All selected counterfactual checks completed; exact source restored.', flush=True)
+          
+          PY
+      - name: Run the complete ACP bridge suite
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        working-directory: packages/acp-bridge
+        run: corepack pnpm exec vitest run --maxWorkers=1 --minWorkers=1 --retry=0 2>&1 | tee "$RUNNER_TEMP/goal-terminal-queue-validation/bridge-suite.log"
+      - name: Collect the full ACP bridge JUnit report
+        if: always()
+        run: |
+          if [ -f packages/acp-bridge/junit.xml ]; then
+            cp packages/acp-bridge/junit.xml "$RUNNER_TEMP/goal-terminal-queue-validation/bridge-suite.xml"
+          fi
+      - name: Preserve validation logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: goal-terminal-queue-round6-7c16962f5ed04d61eff25accadc105e18be6cb34-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/goal-terminal-queue-validation/
+          if-no-files-found: warn
+          retention-days: 14
