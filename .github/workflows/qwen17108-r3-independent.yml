@@ -1,4 +1,4 @@
-name: Qwen 17108 R3 independent reproduction
+name: Qwen 17108 R3 independent verification
 on:
   push:
     branches:
@@ -7,7 +7,7 @@ permissions:
   contents: read
 jobs:
   reproduce:
-    name: Exact baseline / independent React reproduction
+    name: Exact candidate / independent React verification
     if: github.repository == 'Afloat16/qwen-code'
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -18,8 +18,8 @@ jobs:
     env:
       CI: 'true'
       NODE_OPTIONS: --max-old-space-size=4096
-      SOURCE_SHA: eedc5dc22d7b67d4b6210088b277ede7347e3181
-      SOURCE_TREE: e229a93a2a15dc68e212d2182c115763b07427fa
+      SOURCE_SHA: 111ec89192c4f045854af60111fa7872312d5859
+      SOURCE_TREE: 3194e3a40eaea5ce056f058cef88ef9473fb6501
     steps:
       - name: Check out independent scripts
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -27,25 +27,25 @@ jobs:
           path: verification
           sparse-checkout: .github/validation/17108-r3-independent
           persist-credentials: false
-      - name: Check out exact unchanged baseline
+      - name: Check out exact candidate
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: Afloat16/qwen-code
-          ref: eedc5dc22d7b67d4b6210088b277ede7347e3181
+          ref: 111ec89192c4f045854af60111fa7872312d5859
           path: source
           persist-credentials: false
       - name: Record source and global CLI availability
         run: |
-          mkdir -p "$RUNNER_TEMP/qwen17108-r3-independent-baseline"
+          mkdir -p "$RUNNER_TEMP/qwen17108-r3-independent-verification"
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           test "$(git rev-parse 'HEAD^{tree}')" = "$SOURCE_TREE"
           git status --porcelain
           if command -v qwen >/dev/null 2>&1; then
-            qwen --version > "$RUNNER_TEMP/qwen17108-r3-independent-baseline/global-qwen.log" 2>&1 || true
+            qwen --version > "$RUNNER_TEMP/qwen17108-r3-independent-verification/global-qwen.log" 2>&1 || true
           else
-            printf '%s\n' 'Global qwen unavailable on this runner; interactive Web Shell state is tested through the real React/hook source.' > "$RUNNER_TEMP/qwen17108-r3-independent-baseline/global-qwen.log"
+            printf '%s\n' 'Global qwen unavailable on this runner; interactive Web Shell state is tested through the real React/hook source.' > "$RUNNER_TEMP/qwen17108-r3-independent-verification/global-qwen.log"
           fi
-          cat "$RUNNER_TEMP/qwen17108-r3-independent-baseline/global-qwen.log"
+          cat "$RUNNER_TEMP/qwen17108-r3-independent-verification/global-qwen.log"
       - name: Set up Node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
@@ -62,13 +62,13 @@ jobs:
           corepack pnpm exec esbuild packages/sdk-typescript/src/daemon/index.ts --bundle --format=esm --platform=browser --target=es2022 --outfile=packages/sdk-typescript/dist/daemon/index.js --minify --legal-comments=none --tree-shaking=true
           test -s packages/sdk-typescript/dist/daemon/index.js
           git diff --exit-code
-      - name: Run exact unchanged baseline with independent fixture
-        run: python3 ../verification/.github/validation/17108-r3-independent/run.py baseline
+      - name: Run exact candidate with independent fixture
+        run: python3 ../verification/.github/validation/17108-r3-independent/run.py verification
       - name: Preserve independent evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: qwen17108-r3-independent-baseline
-          path: ${{ runner.temp }}/qwen17108-r3-independent-baseline/
+          name: qwen17108-r3-independent-verification
+          path: ${{ runner.temp }}/qwen17108-r3-independent-verification/
           if-no-files-found: error
           retention-days: 14
