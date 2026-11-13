@@ -1,0 +1,146 @@
+{
+  "run": 43456381151,
+  "job": 131991509182,
+  "report": {
+    "phase": "baseline",
+    "source": "eedc5dc22d7b67d4b6210088b277ede7347e3181",
+    "command": [
+      "corepack",
+      "pnpm",
+      "exec",
+      "vitest",
+      "run",
+      "client/components/messages/MemoryMessage.round7-independent.test.tsx",
+      "--maxWorkers=1",
+      "--minWorkers=1",
+      "--retry=0",
+      "--reporter=json",
+      "--reporter=default",
+      "--outputFile.json=/home/runner/work/_temp/qwen17108-r3-independent-baseline/tests.json"
+    ],
+    "exit_code": 1,
+    "total": 5,
+    "passed": 2,
+    "failed": 3,
+    "pending": 0,
+    "failed_assertions": [
+      {
+        "name": "MemoryMessage R3 independent reproduction reports the list-load cause to both panel and transcript",
+        "messages": [
+          "AssertionError: expected \"spy\" to be called with arguments: [ 'workspace not trusted', 'error' ]\u001b[90m\n\nReceived: \n\n\u001b[1m  1st spy call:\n\n\u001b[22m\u001b[2m  [\u001b[22m\n\u001b[32m-   \"workspace not trusted\",\u001b[90m\n\u001b[31m+   \"Could not refresh memory. Please try again.\",\u001b[90m\n\u001b[2m    \"error\",\u001b[22m\n\u001b[2m  ]\u001b[22m\n\u001b[39m\u001b[90m\n\nNumber of calls: \u001b[1m1\u001b[22m\n\u001b[39m\n    at Proxy.<anonymous> (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/expect/dist/index.js:1355:10)\n    at Proxy.<anonymous> (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/expect/dist/index.js:1029:14)\n    at Proxy.methodWrapper (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/chai/chai.js:1618:25)\n    at /home/runner/work/qwen-code/qwen-code/source/packages/web-shell/client/components/messages/MemoryMessage.round7-independent.test.tsx:211:31\n    at file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+        ]
+      },
+      {
+        "name": "MemoryMessage R3 independent reproduction acknowledges a same-path event supersedes a refresh that resolves before retry recovery",
+        "messages": [
+          "AssertionError: expected \"spy\" to be called with arguments: [ …(2) ]\u001b[90m\n\nNumber of calls: \u001b[1m0\u001b[22m\n\u001b[39m\n    at Proxy.<anonymous> (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/expect/dist/index.js:1355:10)\n    at Proxy.<anonymous> (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/expect/dist/index.js:1029:14)\n    at Proxy.methodWrapper (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/chai/chai.js:1618:25)\n    at /home/runner/work/qwen-code/qwen-code/source/packages/web-shell/client/components/messages/MemoryMessage.round7-independent.test.tsx:268:33\n    at file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+        ]
+      },
+      {
+        "name": "MemoryMessage R3 independent reproduction acknowledges a same-path event supersedes a refresh that rejects before retry recovery",
+        "messages": [
+          "AssertionError: expected \"spy\" to be called with arguments: [ …(2) ]\u001b[90m\n\nNumber of calls: \u001b[1m0\u001b[22m\n\u001b[39m\n    at Proxy.<anonymous> (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/expect/dist/index.js:1355:10)\n    at Proxy.<anonymous> (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/expect/dist/index.js:1029:14)\n    at Proxy.methodWrapper (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/chai/chai.js:1618:25)\n    at /home/runner/work/qwen-code/qwen-code/source/packages/web-shell/client/components/messages/MemoryMessage.round7-independent.test.tsx:268:33\n    at file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+        ]
+      }
+    ],
+    "unhandled_errors": 0,
+    "accepted": true,
+    "source_before": {
+      "packages/web-shell/client/components/messages/MemoryMessage.tsx": "e92070d9ff1a5b02a81c96215faa7dd29fa0ec0de49e90c2b0c1647f9e58bd48",
+      "packages/web-shell/client/daemon/workspace/hooks/useDaemonResource.ts": "9a3a0c2d634322ffb5ec26e9d694052eebc54cd3b323be9b44932bfa9eec3d68",
+      "packages/web-shell/client/daemon/workspace/hooks/useDaemonMemory.ts": "4cf56008f393755bef7e6ca4a0283d30502d663421ee2357c47fb6a2bcfb000e",
+      "packages/web-shell/client/daemon/workspace/hooks/useWorkspaceEventReload.ts": "601fc336a497122bdccbd993ab6ae94ff8711082f8003a3efb9ea51b7956c781"
+    },
+    "source_after": {
+      "packages/web-shell/client/components/messages/MemoryMessage.tsx": "e92070d9ff1a5b02a81c96215faa7dd29fa0ec0de49e90c2b0c1647f9e58bd48",
+      "packages/web-shell/client/daemon/workspace/hooks/useDaemonResource.ts": "9a3a0c2d634322ffb5ec26e9d694052eebc54cd3b323be9b44932bfa9eec3d68",
+      "packages/web-shell/client/daemon/workspace/hooks/useDaemonMemory.ts": "4cf56008f393755bef7e6ca4a0283d30502d663421ee2357c47fb6a2bcfb000e",
+      "packages/web-shell/client/daemon/workspace/hooks/useWorkspaceEventReload.ts": "601fc336a497122bdccbd993ab6ae94ff8711082f8003a3efb9ea51b7956c781"
+    },
+    "source_unchanged": true,
+    "tracked_diff_unchanged": true,
+    "temporary_test_removed": true
+  },
+  "observations": [
+    {
+      "label": "list-error",
+      "contentReadsDelta": 0,
+      "editDisabled": false,
+      "panel": "WorkspaceUser/workspace/QWEN.mdRefreshEditworkspace not trustedexisting memory\n",
+      "messages": [
+        [
+          "Could not refresh memory. Please try again.",
+          "error"
+        ]
+      ],
+      "outcomes": [
+        {
+          "hasData": false,
+          "superseded": false
+        }
+      ],
+      "writes": 0
+    },
+    {
+      "label": "superseded-resolve",
+      "contentReadsDelta": 0,
+      "editDisabled": true,
+      "panel": "WorkspaceUser/workspace/QWEN.mdRefreshEdittemporary read failureNo memory files found.",
+      "messages": [],
+      "outcomes": [
+        {
+          "hasData": false,
+          "superseded": true
+        }
+      ],
+      "writes": 0
+    },
+    {
+      "label": "superseded-reject",
+      "contentReadsDelta": 0,
+      "editDisabled": true,
+      "panel": "WorkspaceUser/workspace/QWEN.mdRefreshEdittemporary read failureNo memory files found.",
+      "messages": [],
+      "outcomes": [
+        {
+          "hasData": false,
+          "superseded": true
+        }
+      ],
+      "writes": 0
+    },
+    {
+      "label": "uncontended-control",
+      "contentReadsDelta": 1,
+      "editDisabled": false,
+      "panel": "WorkspaceUser/workspace/QWEN.mdRefreshEditMemory refreshed.recovered current memory\n",
+      "messages": [],
+      "outcomes": [
+        {
+          "hasData": true,
+          "superseded": false
+        }
+      ],
+      "writes": 0
+    },
+    {
+      "label": "unavailable-control",
+      "contentReadsDelta": 0,
+      "editDisabled": false,
+      "panel": "WorkspaceUser/workspace/QWEN.mdRefreshEditCould not refresh memory. Please try again.existing memory\n",
+      "messages": [
+        [
+          "Could not refresh memory. Please try again.",
+          "error"
+        ]
+      ],
+      "outcomes": [
+        {
+          "hasData": false,
+          "superseded": false
+        }
+      ],
+      "writes": 0
+    }
+  ]
+}

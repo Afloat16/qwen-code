@@ -11,7 +11,15 @@ The first hosted attempt (run 43455399442 / job 131988059893) was blocked during
 
 A second setup-only attempt (run 43455904046 / job 131989836721) identified four missing acp-bridge runtime exports used by the browser daemon SDK. No tests executed. The next attempt compiles those four actual source entrypoints and the SDK daemon entry, without any source substitution or Vitest configuration change. This narrow prerequisite compilation is not a full repository build or typecheck.
 
-Pending hosted observations. Five focused cases cover the real daemon-error transcript, explicit retry feedback for superseded resolve/reject refreshes, followed by successful uncontended retry, and two controls (uncontended recovery and unavailable generic feedback). Baseline acceptance requires exactly three direct assertion failures and both controls passing, with no runtime/setup errors. The runner records exact production SHA256 before/after and removes the temporary test in finally.
+**Status**: REPRODUCED
+**Method**: test-script (standard web-shell Vitest configuration; real React/resource/memory/event hooks)
+**Binary**: no global qwen is installed on the hosted runner; no CLI or browser E2E claim
+**Run**: https://github.com/Afloat16/qwen-code/actions/runs/43456381151 (job 131991509182)
+**Source**: exact eedc5dc22d7b67d4b6210088b277ede7347e3181
+
+Five cases executed: two controls passed and three direct assertions failed, with zero skipped cases and no runtime/setup error. The list loader's workspace-not-trusted cause appears in the panel but the transcript receives generic retry text. For both superseded resolve and reject, the current click produces no transcript feedback, performs no content read, and leaves Edit disabled. The independent uncontended refresh control re-reads once and recovers; the unavailable control keeps the existing generic failure. The new retry-feedback assertions fail directly on zero callback calls.
+
+All four production file SHA256 values and the complete tracked diff match before and after the run. The temporary test was removed in finally. The narrow dependency compilation is setup only; this run does not represent a full repository build or typecheck. The two earlier zero-test setup attempts remain recorded above and are not counted as reproduction evidence.
 
 ## Verification report
 
