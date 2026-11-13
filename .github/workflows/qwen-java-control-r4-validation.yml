@@ -1,0 +1,263 @@
+name: Qwen Java control reply fourth-review validation
+
+on:
+  push:
+    branches:
+      - validation/qwen-java-control-r4-20261113
+
+permissions:
+  contents: read
+
+jobs:
+  java:
+    name: PR 17113 / Java fourth-review follow-up
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash
+        working-directory: packages/sdk-java/qwencode
+    env:
+      CI: "true"
+      CANDIDATE_SHA: 7408a7fe20febe0f1d2f4cc2316a62eb82921234
+      MAVEN_OPTS: -Xmx512m
+      JAVA_TOOL_OPTIONS: -Xmx512m
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: 7408a7fe20febe0f1d2f4cc2316a62eb82921234
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify and record the tested source
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen-followup-validation"
+          {
+            test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+            test "$(git rev-parse HEAD^{tree})" = "cebc087b394fa9a7592dd0375b7d4d3ef05b54be"
+            test "$(git rev-parse HEAD^)" = "839d8cd3298121b6e6b4b050a69b5a62efaed86b"
+            git show --no-patch --format=fuller HEAD
+            git diff --check HEAD^ HEAD
+            python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('pom.xml').getroot()
+          release = root.find('{*}properties/{*}maven.compiler.release')
+          assert release is not None and release.text == '11', 'Expected Java 11 release target'
+          print('Maven compiler release:', release.text)
+          PY
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/source.log"
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with:
+          distribution: temurin
+          java-version: "21"
+          settings-path: "${{ runner.temp }}/setup-java-m2"
+      - name: Use isolated Maven settings
+        run: echo "MAVEN_ARGS=--settings $RUNNER_TEMP/setup-java-m2/settings.xml --toolchains $RUNNER_TEMP/setup-java-m2/toolchains.xml" >> "$GITHUB_ENV"
+      - name: Run the complete SDK test suite with Java 11 release
+        id: sdk_tests
+        run: |
+          {
+            java -version
+            mvn -version
+            mvn --batch-mode --no-transfer-progress clean test
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/sdk-tests.log"
+          cp -R target/surefire-reports "$RUNNER_TEMP/qwen-followup-validation/full-suite-reports"
+      - name: Check SDK Java style
+        if: ${{ !cancelled() && steps.sdk_tests.outcome == 'success' }}
+        run: mvn --batch-mode --no-transfer-progress checkstyle:check 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/checkstyle.log"
+      - name: Package the tested SDK artifacts
+        if: ${{ !cancelled() && steps.sdk_tests.outcome == 'success' }}
+        run: mvn --batch-mode --no-transfer-progress -DskipTests -Dgpg.skip=true package 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/package.log"
+      - name: Verify the old-loop counterfactual and restored control suite
+        if: ${{ !cancelled() && steps.sdk_tests.outcome == 'success' }}
+        run: |
+          cat > "$RUNNER_TEMP/qwen-followup-validation/validate-r4.py" <<'PY_R4'
+          #!/usr/bin/env python3
+          """Validate the R4 wrapper boundary through the real Java Session test."""
+          import argparse
+          import hashlib
+          import json
+          from pathlib import Path
+          import shutil
+          import subprocess
+          import sys
+          import xml.etree.ElementTree as ET
+          
+          parser = argparse.ArgumentParser()
+          parser.add_argument("--repo", type=Path, required=True)
+          parser.add_argument("--output", type=Path, required=True)
+          parser.add_argument("--local-maven-runner", type=Path)
+          args = parser.parse_args()
+          repo = args.repo.resolve()
+          output = args.output.resolve()
+          output.mkdir(parents=True, exist_ok=True)
+          module = repo / "packages/sdk-java/qwencode"
+          relative = "packages/sdk-java/qwencode/src/main/java/com/alibaba/qwen/code/cli/session/Session.java"
+          source = repo / relative
+          test_relative = "packages/sdk-java/qwencode/src/test/java/com/alibaba/qwen/code/cli/session/SessionControlRequestTest.java"
+          test_source = repo / test_relative
+          parent = "839d8cd3298121b6e6b4b050a69b5a62efaed86b"
+          expected_source_sha256 = "dd407d75268e980d1845b7891335ab2a86acbcfbe9883b93e261c537a363f35d"
+          expected_test_sha256 = "4a6b30ed907de312b00965ba1b577abdce1698709dedeea46b3d7b709cccbd83"
+          before = source.read_bytes()
+          test_before = test_source.read_bytes()
+          diff_before = subprocess.check_output(["git", "diff", "--binary"], cwd=repo)
+          sha256 = lambda data: hashlib.sha256(data).hexdigest()
+          assert sha256(before) == expected_source_sha256
+          assert sha256(test_before) == expected_test_sha256
+          parent_source = subprocess.check_output(["git", "show", parent + ":" + relative], cwd=repo)
+          assert parent_source != before
+          report_name = "TEST-com.alibaba.qwen.code.cli.session.SessionControlRequestTest.xml"
+          results = {
+              "parent": parent,
+              "head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
+              "source_sha256": sha256(before),
+              "test_sha256": sha256(test_before),
+              "scope": "Restore only the parent Session.java while retaining candidate tests, then restore the candidate.",
+          }
+          
+          def run(phase, selector):
+              log = output / (phase + ".log")
+              report = module / "target/surefire-reports" / report_name
+              report.unlink(missing_ok=True)
+              if args.local_maven_runner:
+                  command = [sys.executable, str(args.local_maven_runner.resolve()), str(log), "--offline", "-Dtest=" + selector, "test"]
+                  completed = subprocess.run(command, cwd=module, timeout=180, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                  (output / (phase + "-runner.log")).write_text(completed.stdout)
+              else:
+                  command = ["mvn", "--batch-mode", "--no-transfer-progress", "-Dtest=" + selector, "test"]
+                  with log.open("w") as handle:
+                      completed = subprocess.run(command, cwd=module, timeout=180, stdout=handle, stderr=subprocess.STDOUT)
+              assert report.is_file(), "Surefire report missing: " + str(report)
+              saved = output / (phase + ".xml")
+              shutil.copyfile(report, saved)
+              suite = ET.parse(saved).getroot()
+              values = {key: int(suite.attrib[key]) for key in ("tests", "failures", "errors", "skipped")}
+              values["passed"] = values["tests"] - values["failures"] - values["errors"] - values["skipped"]
+              values["exit_code"] = completed.returncode
+              values["cases"] = []
+              for case in suite.findall("testcase"):
+                  failure = case.find("failure")
+                  error = case.find("error")
+                  values["cases"].append({
+                      "name": case.attrib["name"],
+                      "failure": failure.attrib if failure is not None else None,
+                      "error": error.attrib if error is not None else None,
+                      "skipped": case.find("skipped") is not None,
+                  })
+              return values
+          
+          try:
+              source.write_bytes(parent_source)
+              mutation = run("parent-wrapper-mutation", "SessionControlRequestTest#preservesTheControlHandlerRuntimeExceptionType")
+              results["mutation"] = mutation
+              assert mutation["exit_code"] != 0
+              assert tuple(mutation[k] for k in ("tests", "failures", "errors", "skipped")) == (1, 1, 0, 0)
+              case = mutation["cases"][0]
+              assert case["name"] == "preservesTheControlHandlerRuntimeExceptionType"
+              assert case["failure"] is not None
+              message = case["failure"]["message"]
+              assert "expected: <Control request handler failed (RuntimeException); see SDK logs for details>" in message
+              assert "but was: <Control request handler failed (IllegalStateException); see SDK logs for details>" in message
+          finally:
+              source.write_bytes(before)
+              results["source_restored"] = source.read_bytes() == before
+              results["test_unchanged"] = test_source.read_bytes() == test_before
+              results["tracked_diff_restored"] = subprocess.check_output(["git", "diff", "--binary"], cwd=repo) == diff_before
+              (output / "verification-results.json").write_text(json.dumps(results, indent=2) + "\n")
+              assert results["source_restored"] and results["test_unchanged"] and results["tracked_diff_restored"]
+          
+          restored = run("restored-control-suite", "SessionControlRequestTest")
+          results["restored_control_suite"] = restored
+          assert restored["exit_code"] == 0
+          assert tuple(restored[k] for k in ("tests", "failures", "errors", "skipped")) == (21, 0, 0, 0)
+          assert source.read_bytes() == before and test_source.read_bytes() == test_before
+          assert subprocess.check_output(["git", "diff", "--binary"], cwd=repo) == diff_before
+          results["status"] = "passed"
+          (output / "verification-results.json").write_text(json.dumps(results, indent=2) + "\n")
+          print(json.dumps({"status": results["status"], "mutation": {k: results["mutation"][k] for k in ("tests", "passed", "failures", "errors", "skipped")}, "restored": {k: restored[k] for k in ("tests", "passed", "failures", "errors", "skipped")}, "source_restored": True, "tracked_diff_restored": True}, indent=2))
+          
+          PY_R4
+          python3 "$RUNNER_TEMP/qwen-followup-validation/validate-r4.py" \
+            --repo "$GITHUB_WORKSPACE" \
+            --output "$RUNNER_TEMP/qwen-followup-validation/wrapper-counterfactual"
+          git diff --exit-code
+      - name: Preserve validation logs and test reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen-java-17113-r4-7408a7fe20febe0f1d2f4cc2316a62eb82921234-attempt-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qwen-followup-validation/
+            packages/sdk-java/qwencode/target/surefire-reports/
+            packages/sdk-java/qwencode/target/checkstyle-result.xml
+            packages/sdk-java/qwencode/target/site/jacoco/
+          if-no-files-found: warn
+          retention-days: 14
+
+  workspace:
+    name: PR 17113 / Full workspace build and types
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI: "true"
+      NODE_OPTIONS: --max-old-space-size=6144
+      CANDIDATE_SHA: 7408a7fe20febe0f1d2f4cc2316a62eb82921234
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: 7408a7fe20febe0f1d2f4cc2316a62eb82921234
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify and record the tested source
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen-followup-validation"
+          {
+            test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+            test "$(git rev-parse HEAD^{tree})" = "cebc087b394fa9a7592dd0375b7d4d3ef05b54be"
+            test "$(git rev-parse HEAD^)" = "839d8cd3298121b6e6b4b050a69b5a62efaed86b"
+            git show --no-patch --format=fuller HEAD
+            git diff --check HEAD^ HEAD
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/source.log"
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install locked dependencies
+        env:
+          QWEN_SKIP_PREPARE: "1"
+        run: |
+          corepack enable
+          {
+            node --version
+            corepack pnpm --version
+            corepack pnpm install --frozen-lockfile --reporter=append-only
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/install.log"
+      - name: Build all workspaces
+        id: build
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/build.log"
+      - name: Check all workspace and integration types
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/typecheck.log"
+      - name: Check unchanged workspace source
+        run: |
+          {
+            git diff --exit-code
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/style.log"
+      - name: Preserve workspace validation logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen-workspace-17113-r4-7408a7fe20febe0f1d2f4cc2316a62eb82921234-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qwen-followup-validation/
+          if-no-files-found: warn
+          retention-days: 14
