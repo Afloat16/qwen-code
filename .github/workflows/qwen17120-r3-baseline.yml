@@ -1,0 +1,74 @@
+name: Qwen 17120 R3 reproduction
+on:
+  push:
+    branches:
+      - validation/qwen17120-r3-baseline-20261113
+permissions:
+  contents: read
+jobs:
+  reproduce:
+    name: Exact unchanged dispatch / help and numeric arguments
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      CI: 'true'
+      NODE_OPTIONS: --max-old-space-size=6144
+      TESTS_SHA: 1c85efa865e10e4ed937bfd6e47360fa03f6ac61
+      TESTS_TREE: 1fac362a0eb81a0c9ac34f9c93f59cd1cd46f89b
+    steps:
+      - name: Check out validation scripts
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          path: verification
+          sparse-checkout: .github/validation/17120-r3
+          persist-credentials: false
+      - name: Check out exact tests-only commit
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: 1c85efa865e10e4ed937bfd6e47360fa03f6ac61
+          path: source
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify unchanged production source
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen17120-r3-baseline"
+          test "$(git rev-parse HEAD)" = "$TESTS_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$TESTS_TREE"
+          test "$(git rev-parse HEAD^)" = 546de1455e62c4187288f0ce77248bf72b393f76
+          git diff --check HEAD^ HEAD
+          test "$(git diff --name-only HEAD^ HEAD)" = packages/cli/src/cli.test.ts
+          git show HEAD^:packages/cli/src/cli.ts | cmp - packages/cli/src/cli.ts
+          if command -v qwen >/dev/null 2>&1; then
+            qwen --version > "$RUNNER_TEMP/qwen17120-r3-baseline/global-qwen.log" 2>&1 || true
+          else
+            printf '%s\n' 'Global qwen unavailable; exact source entry tests use the standard CLI package setup.' > "$RUNNER_TEMP/qwen17120-r3-baseline/global-qwen.log"
+          fi
+          cat "$RUNNER_TEMP/qwen17120-r3-baseline/global-qwen.log"
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install locked dependencies
+        env:
+          QWEN_SKIP_PREPARE: '1'
+        run: |
+          corepack enable
+          corepack pnpm install --frozen-lockfile --reporter=append-only
+      - name: Build all workspace prerequisites
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/qwen17120-r3-baseline/build.log"
+      - name: Reproduce help failure and verify numeric control and mutation
+        run: python3 ../verification/.github/validation/17120-r3/baseline.py
+      - name: Preserve baseline evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen17120-r3-baseline
+          path: ${{ runner.temp }}/qwen17120-r3-baseline/
+          if-no-files-found: error
+          retention-days: 14
