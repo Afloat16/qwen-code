@@ -1,4 +1,4 @@
-name: Qwen 17123 R2 independent reader reproduction
+name: Qwen 17123 R2 exact candidate validation
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   reproduce:
-    name: Exact f385 real reader baseline
+    name: Exact b86 build, types, bundle and real readers
     if: github.repository == 'Afloat16/qwen-code'
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -21,8 +21,8 @@ jobs:
     env:
       CI: 'true'
       NODE_OPTIONS: --max-old-space-size=6144
-      SOURCE_SHA: f38593c135e451e180fcca8cbac245c727c501ae
-      EXPECT_READER_RESULT: baseline
+      SOURCE_SHA: b86af9512bb437b63fc014ff2e8aa74b7f42c9b4
+      EXPECT_READER_RESULT: candidate
     steps:
       - name: Check out independent fixtures
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -30,19 +30,20 @@ jobs:
           path: verification
           persist-credentials: false
           sparse-checkout: .github/validation
-      - name: Check out exact unmodified baseline
+      - name: Check out exact unmodified candidate
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: Afloat16/qwen-code
-          ref: f38593c135e451e180fcca8cbac245c727c501ae
+          ref: b86af9512bb437b63fc014ff2e8aa74b7f42c9b4
           path: source
           persist-credentials: false
-          fetch-depth: 1
-      - name: Record baseline and global CLI availability
+          fetch-depth: 2
+      - name: Record candidate and global CLI availability
         run: |
           mkdir -p "$RUNNER_TEMP/qwen17123-r2-independent"
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-          test "$(git rev-parse 'HEAD^{tree}')" = adc00ab0f9c7e30da27e9a8b9ba401257683e74c
+          test "$(git rev-parse 'HEAD^{tree}')" = 73048b97756a586744c47a65c23d754963c7a5b8
+          test "$(git rev-parse HEAD^)" = f38593c135e451e180fcca8cbac245c727c501ae
           git show --no-patch --format=fuller HEAD > "$RUNNER_TEMP/qwen17123-r2-independent/source.log"
           set +e
           qwen --version > "$RUNNER_TEMP/qwen17123-r2-independent/global-qwen.log" 2>&1
@@ -66,13 +67,35 @@ jobs:
           } 2>&1 | tee "$RUNNER_TEMP/qwen17123-r2-independent/install.log"
       - name: Build workspace test prerequisites
         run: npm run build 2>&1 | tee "$RUNNER_TEMP/qwen17123-r2-independent/build.log"
-      - name: Reproduce through four real settings readers
+      - name: Check all workspace and integration types
+        run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/qwen17123-r2-independent/typecheck.log"
+      - name: Build the production bundle
+        run: npm run bundle 2>&1 | tee "$RUNNER_TEMP/qwen17123-r2-independent/bundle.log"
+      - name: Check the two changed files
+        run: |
+          files=(
+            packages/cli/src/serve/fast-path-settings.ts
+            packages/cli/src/serve/fast-path.test.ts
+          )
+          corepack pnpm exec eslint "${files[@]}" --max-warnings 0
+          corepack pnpm exec prettier --check "${files[@]}"
+          git diff --check HEAD^ HEAD
+      - name: Run three complete committed suites
+        run: python3 ../verification/.github/validation/17123-r2-committed.py
+      - name: Verify the same four real reader cases
         run: python3 ../verification/.github/validation/17123-r2-independent.py
+      - name: Verify the final source is unchanged
+        run: |
+          git diff --exit-code
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git hash-object packages/cli/src/serve/fast-path-settings.ts)" = 32a7e2213bac936c8a8884bf06dd0b96737d7cac
+          test "$(git hash-object packages/cli/src/serve/fast-path.test.ts)" = c85fb707927cff751021240955b0a06f886379aa
+
       - name: Preserve independent observations
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: qwen17123-r2-independent-baseline-${{ github.run_attempt }}
+          name: qwen17123-r2-independent-candidate-${{ github.run_attempt }}
           path: ${{ runner.temp }}/qwen17123-r2-independent/
           if-no-files-found: error
           retention-days: 14
