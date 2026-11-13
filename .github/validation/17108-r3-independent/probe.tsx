@@ -217,7 +217,7 @@ describe('MemoryMessage R3 independent reproduction', () => {
   });
 
   it.each(['resolve', 'reject'] as const)(
-    'recovers a read-only panel when a same-path event supersedes a refresh that %ss',
+    'acknowledges a same-path event supersedes a refresh that %ss before retry recovery',
     async (completion) => {
       await renderReadFailure();
       const oldRefresh = deferred<DaemonWorkspaceMemoryStatus>();
@@ -262,12 +262,27 @@ describe('MemoryMessage R3 independent reproduction', () => {
       expect(harness.outcomes).toEqual([
         expect.objectContaining({ data: undefined, superseded: true }),
       ]);
+      expect(contentReads()).toBe(readsBefore);
+      expect(container.textContent).not.toContain('obsolete');
+      expect(editDisabled()).toBe(true);
+      expect(harness.onMessage).toHaveBeenCalledWith(
+        'Could not refresh memory. Please try again.',
+        'error',
+      );
+      expect(container.textContent).toContain(
+        'Could not refresh memory. Please try again.',
+      );
+      expect(harness.writeMemory).not.toHaveBeenCalled();
+
+      await refresh();
+      await flush();
+
+      recordCase('retry-after-superseded-' + completion, readsBefore);
       expect(contentReads()).toBe(readsBefore + 1);
       expect(container.textContent).toContain('recovered current memory');
+      expect(container.textContent).toContain('Memory refreshed.');
       expect(container.textContent).not.toContain('temporary read failure');
-      expect(container.textContent).not.toContain('obsolete');
       expect(editDisabled()).toBe(false);
-      expect(harness.onMessage).not.toHaveBeenCalled();
       expect(harness.writeMemory).not.toHaveBeenCalled();
     },
   );

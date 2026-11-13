@@ -56,6 +56,11 @@ jobs:
         run: |
           corepack enable
           corepack pnpm install --frozen-lockfile --reporter=append-only
+      - name: Build only the missing browser daemon SDK prerequisite
+        run: |
+          corepack pnpm exec esbuild packages/sdk-typescript/src/daemon/index.ts --bundle --format=esm --platform=browser --target=es2022 --outfile=packages/sdk-typescript/dist/daemon/index.js --minify --legal-comments=none --tree-shaking=true
+          test -s packages/sdk-typescript/dist/daemon/index.js
+          git diff --exit-code
       - name: Run exact unchanged baseline with independent fixture
         run: python3 ../verification/.github/validation/17108-r3-independent/run.py baseline
       - name: Preserve independent evidence
