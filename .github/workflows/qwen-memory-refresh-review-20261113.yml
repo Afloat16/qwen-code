@@ -1,0 +1,112 @@
+name: Qwen memory refresh review validation 20261113
+
+on:
+  push:
+    branches:
+      - validation/qwen-memory-refresh-review-20261113
+
+permissions:
+  contents: read
+
+jobs:
+  typescript:
+    name: PR ${{ matrix.pr }} / TypeScript
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pr: 17108
+            sha: eedc5dc22d7b67d4b6210088b277ede7347e3181
+            package: packages/web-shell
+            tests: client/components/messages/MemoryMessage.test.tsx client/components/messages/MemoryMessage.refresh.test.tsx client/daemon/workspace/hooks/useDaemonResource.test.tsx client/daemon/workspace/hooks/useDaemonMemory.test.tsx
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI: "true"
+      NODE_OPTIONS: --max-old-space-size=6144
+      CANDIDATE_SHA: ${{ matrix.sha }}
+      PRIMARY_PACKAGE: ${{ matrix.package }}
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: ${{ matrix.sha }}
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify and record the tested source
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen-followup-validation"
+          {
+            [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+            test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+            git show --no-patch --format=fuller HEAD
+            git diff --check HEAD^ HEAD
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/source.log"
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install locked dependencies
+        env:
+          QWEN_SKIP_PREPARE: "1"
+        run: |
+          corepack enable
+          {
+            node --version
+            corepack pnpm --version
+            corepack pnpm install --frozen-lockfile --reporter=append-only
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/install.log"
+      - name: Build all workspaces
+        id: build
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/build.log"
+      - name: Check all workspace and integration types
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/typecheck.log"
+      - name: Run the requested package regressions
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        working-directory: ${{ matrix.package }}
+        env:
+          TEST_PATHS: ${{ matrix.tests }}
+        run: |
+          read -r -a test_paths <<< "$TEST_PATHS"
+          corepack pnpm exec vitest run "${test_paths[@]}" --maxWorkers=1 --minWorkers=1 --retry=0 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/package-tests.log"
+      - name: Check the changed source and test style
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          changed=(
+            packages/web-shell/client/App.tsx
+            packages/web-shell/client/i18n.tsx
+            packages/web-shell/client/components/messages/MemoryMessage.tsx
+            packages/web-shell/client/components/messages/MemoryMessage.test.tsx
+            packages/web-shell/client/components/messages/MemoryMessage.refresh.test.tsx
+            packages/web-shell/client/daemon/workspace/hooks/useDaemonResource.ts
+            packages/web-shell/client/daemon/workspace/hooks/useDaemonResource.test.tsx
+          )
+          {
+            corepack pnpm exec eslint "${changed[@]}"
+            corepack pnpm exec prettier --check "${changed[@]}" docs/users/features/memory.md
+            git diff --exit-code
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/style.log"
+      - name: Collect JUnit reports
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen-followup-validation"
+          for report in "$PRIMARY_PACKAGE/junit.xml" packages/core/junit.xml; do
+            if [ -f "$report" ]; then
+              report_name="${report//\//-}"
+              cp "$report" "$RUNNER_TEMP/qwen-followup-validation/$report_name"
+            fi
+          done
+      - name: Preserve validation logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen-followup-${{ matrix.pr }}-${{ matrix.sha }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qwen-followup-validation/
+          if-no-files-found: warn
+          retention-days: 14
