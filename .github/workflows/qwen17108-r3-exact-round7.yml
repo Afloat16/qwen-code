@@ -1,0 +1,104 @@
+name: Qwen 17108 R3 exact candidate validation
+
+on:
+  push:
+    branches:
+      - validation/qwen17108-r3-exact-round7-20261113
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Exact candidate build, types, bundle and refresh regressions
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      CI: 'true'
+      NODE_OPTIONS: --max-old-space-size=6144
+      SOURCE_SHA: 111ec89192c4f045854af60111fa7872312d5859
+    steps:
+      - name: Check out validation scripts
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          path: verification
+          persist-credentials: false
+          sparse-checkout: .github/validation
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: 111ec89192c4f045854af60111fa7872312d5859
+          path: source
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify source identity
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen17108-r3-exact"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = 3194e3a40eaea5ce056f058cef88ef9473fb6501
+          test "$(git rev-parse HEAD^)" = eedc5dc22d7b67d4b6210088b277ede7347e3181
+          git show --no-patch --format=fuller HEAD | tee "$RUNNER_TEMP/qwen17108-r3-exact/source.log"
+          git diff --check HEAD^ HEAD
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install frozen dependencies
+        env:
+          QWEN_SKIP_PREPARE: '1'
+        run: |
+          corepack enable
+          {
+            node --version
+            corepack pnpm --version
+            corepack pnpm install --frozen-lockfile --reporter=append-only
+          } 2>&1 | tee "$RUNNER_TEMP/qwen17108-r3-exact/install.log"
+      - name: Check formatting before the full build
+        run: |
+          files=(
+            packages/web-shell/client/components/messages/MemoryMessage.tsx
+            packages/web-shell/client/components/messages/MemoryMessage.refresh.test.tsx
+            packages/web-shell/client/daemon/workspace/hooks/useDaemonResource.ts
+            packages/web-shell/client/daemon/workspace/hooks/useDaemonResource.test.tsx
+          )
+          if ! corepack pnpm exec prettier --check "${files[@]}"; then
+            corepack pnpm exec prettier --write "${files[@]}"
+            git diff -- "${files[@]}"
+            exit 1
+          fi
+      - name: Build all workspaces
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/qwen17108-r3-exact/build.log"
+      - name: Check all workspace and integration types
+        run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/qwen17108-r3-exact/typecheck.log"
+      - name: Build production bundle
+        run: npm run bundle 2>&1 | tee "$RUNNER_TEMP/qwen17108-r3-exact/bundle.log"
+      - name: Lint the changed source and tests
+        run: |
+          corepack pnpm exec eslint \
+            packages/web-shell/client/components/messages/MemoryMessage.tsx \
+            packages/web-shell/client/components/messages/MemoryMessage.refresh.test.tsx \
+            packages/web-shell/client/daemon/workspace/hooks/useDaemonResource.ts \
+            packages/web-shell/client/daemon/workspace/hooks/useDaemonResource.test.tsx \
+            --max-warnings 0
+      - name: Verify complete focused suites and narrow counterfactuals
+        run: python3 ../verification/.github/validation/17108-r3-exact.py
+      - name: Check final source restoration
+        run: |
+          git diff --exit-code
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git hash-object packages/web-shell/client/components/messages/MemoryMessage.tsx)" = 81cef3493a6b66e4570784b4b0f83c147dfaac2a
+          test "$(git hash-object packages/web-shell/client/daemon/workspace/hooks/useDaemonResource.ts)" = e8246708f6ff14775ee208cef686888556ec8b42
+      - name: Preserve exact candidate evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen17108-r3-exact-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qwen17108-r3-exact/
+          if-no-files-found: error
+          retention-days: 14
