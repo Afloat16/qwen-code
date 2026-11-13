@@ -86,7 +86,7 @@ try:
     source.write_text(text.replace(numeric_guard, '', 1))
     run('numeric-guard-removed', 1, 7, matrix)
     source.write_bytes(original)
-    string_declaration = "      .positional('args', { type: 'string' })\n"
+    string_declaration = "      .positional('args', { type: 'string', array: true })\n"
     assert add_text.count(string_declaration) == 1
     add_source.write_text(add_text.replace(string_declaration, '', 1))
     run('real-add-string-declaration-removed', 0, 1, add_case)

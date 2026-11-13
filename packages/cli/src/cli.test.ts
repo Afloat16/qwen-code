@@ -129,7 +129,7 @@ vi.mock('./commands/mcp.js', () => ({
                 'unknown-options-as-args': true,
                 'populate--': true,
               })
-              .positional('args', { type: 'string' }),
+              .positional('args', { type: 'string', array: true }),
           handler: mocks.mcpAddHandler,
         })
         .command({

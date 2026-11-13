@@ -18,8 +18,8 @@ jobs:
     env:
       CI: 'true'
       NODE_OPTIONS: --max-old-space-size=6144
-      CANDIDATE_SHA: 5dbc9e3966c861b0f8eb18efa43d9bafdfadecd0
-      CANDIDATE_TREE: ad0b57cb2aed8eeef230b05ca92a8f8280f08575
+      CANDIDATE_SHA: 40978fcaae8aed6cbc67bc4c11e46b099a4450bd
+      CANDIDATE_TREE: a3cc3760cc5ea0eae582e062ddafabd2f28c16f5
     steps:
       - name: Check out validation scripts
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: Afloat16/qwen-code
-          ref: 5dbc9e3966c861b0f8eb18efa43d9bafdfadecd0
+          ref: 40978fcaae8aed6cbc67bc4c11e46b099a4450bd
           path: source
           fetch-depth: 2
           persist-credentials: false
@@ -64,18 +64,19 @@ jobs:
           node --version
           corepack pnpm --version
           corepack pnpm install --frozen-lockfile --reporter=append-only
+      - name: Check the four changed files
+        run: |
+          changed=(packages/cli/src/cli.ts packages/cli/src/cli.test.ts packages/cli/src/commands/mcp/add.ts packages/cli/src/commands/mcp/add.test.ts)
+          corepack pnpm exec eslint "${changed[@]}" --max-warnings 0
+          corepack pnpm exec prettier --check "${changed[@]}"
+      - name: Check exact builder types and parser before the full build
+        run: node ../verification/.github/validation/17120-r3/builder-preflight.mjs
       - name: Build all workspaces
         id: build
         run: npm run build 2>&1 | tee "$RUNNER_TEMP/qwen17120-r3-validation/build.log"
       - name: Check all workspace and integration types
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/qwen17120-r3-validation/typecheck.log"
-      - name: Check the four changed files
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: |
-          changed=(packages/cli/src/cli.ts packages/cli/src/cli.test.ts packages/cli/src/commands/mcp/add.ts packages/cli/src/commands/mcp/add.test.ts)
-          corepack pnpm exec eslint "${changed[@]}" --max-warnings 0
-          corepack pnpm exec prettier --check "${changed[@]}"
       - name: Bundle the exact candidate CLI
         id: bundle
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
