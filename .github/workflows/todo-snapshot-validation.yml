@@ -1,0 +1,60 @@
+name: Todo snapshot validation
+
+on:
+  push:
+    branches:
+      - validation/todo-snapshot-20261113
+
+permissions:
+  contents: read
+
+jobs:
+  todo-and-workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - name: Check out the exact PR head
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: 9b0142d11bb3d26c68c42be4bb9e767a34f91715
+          persist-credentials: false
+      - name: Verify the tested source
+        run: |
+          test "$(git rev-parse HEAD)" = 9b0142d11bb3d26c68c42be4bb9e767a34f91715
+          git show --no-patch --format=fuller HEAD
+          free -h
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install locked dependencies
+        env:
+          QWEN_SKIP_PREPARE: '1'
+        run: |
+          corepack enable
+          corepack pnpm install --frozen-lockfile --reporter=append-only 2>&1 | tee install-validation.log
+      - name: Build all workspaces
+        id: build
+        run: npm run build 2>&1 | tee workspace-build-validation.log
+      - name: Check all workspace and integration types
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run typecheck 2>&1 | tee workspace-types-validation.log
+      - name: Run CLI todo snapshot and MCP regressions
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        working-directory: packages/cli
+        run: CI=1 corepack pnpm exec vitest run src/ui/utils/todoSnapshot.test.ts src/ui/utils/todoSnapshot.mcp.test.ts --maxWorkers=1 --reporter=default --retry=0 2>&1 | tee ../../todo-snapshot-validation.log
+      - name: Preserve validation logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: todo-snapshot-validation-9b0142d1
+          path: |
+            *-validation.log
+            packages/cli/junit.xml
+          if-no-files-found: warn
+          retention-days: 14
