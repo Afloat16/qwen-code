@@ -38,8 +38,8 @@ jobs:
         run: |
           corepack enable
           corepack pnpm install --frozen-lockfile --reporter=append-only 2>&1 | tee install-validation.log
-      - name: Build the SDK
-        run: npm run build --workspace=@qwen-code/sdk 2>&1 | tee sdk-build-validation.log
+      - name: Build the SDK and its workspace dependencies
+        run: corepack pnpm -r --filter '@qwen-code/sdk...' run build 2>&1 | tee sdk-build-validation.log
       - name: Check SDK types
         run: npm run typecheck --workspace=@qwen-code/sdk 2>&1 | tee sdk-types-validation.log
       - name: Run the complete SDK suite
