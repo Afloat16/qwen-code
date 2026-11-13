@@ -1,0 +1,146 @@
+name: Qwen Java control reply third-review validation
+
+on:
+  push:
+    branches:
+      - validation/qwen-java-control-r3-20261113
+
+permissions:
+  contents: read
+
+jobs:
+  java:
+    name: PR 17113 / Java third-review follow-up
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash
+        working-directory: packages/sdk-java/qwencode
+    env:
+      CI: "true"
+      CANDIDATE_SHA: 839d8cd3298121b6e6b4b050a69b5a62efaed86b
+      MAVEN_OPTS: -Xmx512m
+      JAVA_TOOL_OPTIONS: -Xmx512m
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: 839d8cd3298121b6e6b4b050a69b5a62efaed86b
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify and record the tested source
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen-followup-validation"
+          {
+            test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+            git show --no-patch --format=fuller HEAD
+            git diff --check HEAD^ HEAD
+            python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('pom.xml').getroot()
+          release = root.find('{*}properties/{*}maven.compiler.release')
+          assert release is not None and release.text == '11', 'Expected Java 11 release target'
+          print('Maven compiler release:', release.text)
+          PY
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/source.log"
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with:
+          distribution: temurin
+          java-version: "21"
+          settings-path: "${{ runner.temp }}/setup-java-m2"
+      - name: Use isolated Maven settings
+        run: echo "MAVEN_ARGS=--settings $RUNNER_TEMP/setup-java-m2/settings.xml --toolchains $RUNNER_TEMP/setup-java-m2/toolchains.xml" >> "$GITHUB_ENV"
+      - name: Run the complete SDK test suite with Java 11 release
+        id: sdk_tests
+        run: |
+          {
+            java -version
+            mvn -version
+            mvn --batch-mode --no-transfer-progress clean test
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/sdk-tests.log"
+          cp -R target/surefire-reports "$RUNNER_TEMP/qwen-followup-validation/full-suite-reports"
+      - name: Check SDK Java style
+        if: ${{ !cancelled() && steps.sdk_tests.outcome == 'success' }}
+        run: mvn --batch-mode --no-transfer-progress checkstyle:check 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/checkstyle.log"
+      - name: Package the tested SDK artifacts
+        if: ${{ !cancelled() && steps.sdk_tests.outcome == 'success' }}
+        run: mvn --batch-mode --no-transfer-progress -DskipTests -Dgpg.skip=true package 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/package.log"
+      - name: Preserve validation logs and test reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen-java-17113-r3-839d8cd3298121b6e6b4b050a69b5a62efaed86b-attempt-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qwen-followup-validation/
+            packages/sdk-java/qwencode/target/surefire-reports/
+            packages/sdk-java/qwencode/target/checkstyle-result.xml
+            packages/sdk-java/qwencode/target/site/jacoco/
+          if-no-files-found: warn
+          retention-days: 14
+
+  workspace:
+    name: PR 17113 / Full workspace build and types
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI: "true"
+      NODE_OPTIONS: --max-old-space-size=6144
+      CANDIDATE_SHA: 839d8cd3298121b6e6b4b050a69b5a62efaed86b
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: 839d8cd3298121b6e6b4b050a69b5a62efaed86b
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify and record the tested source
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen-followup-validation"
+          {
+            test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+            git show --no-patch --format=fuller HEAD
+            git diff --check HEAD^ HEAD
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/source.log"
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install locked dependencies
+        env:
+          QWEN_SKIP_PREPARE: "1"
+        run: |
+          corepack enable
+          {
+            node --version
+            corepack pnpm --version
+            corepack pnpm install --frozen-lockfile --reporter=append-only
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/install.log"
+      - name: Build all workspaces
+        id: build
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/build.log"
+      - name: Check all workspace and integration types
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/typecheck.log"
+      - name: Check documentation format and unchanged source
+        run: |
+          {
+            corepack pnpm exec prettier --check packages/sdk-java/qwencode/README.md
+            git diff --exit-code
+          } 2>&1 | tee "$RUNNER_TEMP/qwen-followup-validation/style.log"
+      - name: Preserve workspace validation logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen-workspace-17113-r3-839d8cd3298121b6e6b4b050a69b5a62efaed86b-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qwen-followup-validation/
+          if-no-files-found: warn
+          retention-days: 14
