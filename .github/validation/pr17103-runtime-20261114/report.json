@@ -1,0 +1,301 @@
+{
+  "pr": "https://github.com/QwenLM/qwen-code/pull/17103",
+  "verifiedHead": "58069518e9971bae2c989e1c99bd3e24f18b2221",
+  "controlBase": "84b5b53f1738ef154bca3b3bd8bb40f4f3378510",
+  "recordedAt": "2026-11-14T15:40:12.510Z",
+  "environment": {
+    "node": "v24.22.1",
+    "platform": "linux",
+    "architecture": "x64",
+    "loader": "tsx 4.23.9"
+  },
+  "implementation": "Exact source module imported through tsx; actual REST and ACP-HTTP classes; real loopback HTTP and native Node fetch. The observing fetch wrapper only records headers and AbortSignal events and forwards original arguments and Response unchanged.",
+  "identity": {
+    "candidateBlob": "f6d86af0439107f65e346a5a0940db0e05eb62e0",
+    "controlBlob": "bf15a89cade1c7855be6a45fdd651265c17bf711",
+    "trackedSourceChanged": false
+  },
+  "scope": "Runtime evidence for capabilities negotiation, not a daemon/model end-to-end run or a full workspace build. Real clock observations are not assertions of millisecond-perfect scheduling. The baseline changes only negotiateTransport.ts; other loaded runtime sources come from the candidate and are unchanged by this PR.",
+  "observations": [
+    {
+      "label": "candidate complete ACP HTTP body",
+      "mode": "complete",
+      "configuredTimeoutMs": 100,
+      "expected": "acp-http",
+      "passed": true,
+      "signalAborted": false,
+      "events": [
+        {
+          "event": "native_fetch_start",
+          "ms": 19
+        },
+        {
+          "event": "server_request",
+          "ms": 30.5
+        },
+        {
+          "event": "server_response_close",
+          "ms": 32.9,
+          "finished": true,
+          "serverCleanup": false
+        },
+        {
+          "event": "client_headers_received",
+          "ms": 36.5,
+          "status": 200
+        },
+        {
+          "event": "negotiation_settled",
+          "ms": 57.2,
+          "transport": "acp-http"
+        },
+        {
+          "event": "harness_cleanup",
+          "ms": 207.3
+        }
+      ]
+    },
+    {
+      "label": "candidate body stalls after 200 headers",
+      "mode": "body-stall",
+      "configuredTimeoutMs": 100,
+      "expected": "rest",
+      "passed": true,
+      "signalAborted": true,
+      "events": [
+        {
+          "event": "native_fetch_start",
+          "ms": 1.3
+        },
+        {
+          "event": "server_request",
+          "ms": 5
+        },
+        {
+          "event": "client_headers_received",
+          "ms": 5.8,
+          "status": 200
+        },
+        {
+          "event": "client_abort",
+          "ms": 101.2
+        },
+        {
+          "event": "negotiation_settled",
+          "ms": 103.4,
+          "transport": "rest"
+        },
+        {
+          "event": "harness_cleanup",
+          "ms": 103.4
+        },
+        {
+          "event": "server_response_close",
+          "ms": 105.4,
+          "finished": false,
+          "serverCleanup": true
+        }
+      ]
+    },
+    {
+      "label": "candidate complete delayed body",
+      "mode": "delayed",
+      "configuredTimeoutMs": 250,
+      "expected": "acp-http",
+      "passed": true,
+      "signalAborted": false,
+      "events": [
+        {
+          "event": "native_fetch_start",
+          "ms": 0.4
+        },
+        {
+          "event": "server_request",
+          "ms": 2.1
+        },
+        {
+          "event": "client_headers_received",
+          "ms": 2.8,
+          "status": 200
+        },
+        {
+          "event": "server_response_close",
+          "ms": 77.6,
+          "finished": true,
+          "serverCleanup": false
+        },
+        {
+          "event": "negotiation_settled",
+          "ms": 78.2,
+          "transport": "acp-http"
+        },
+        {
+          "event": "harness_cleanup",
+          "ms": 379.3
+        }
+      ]
+    },
+    {
+      "label": "candidate malformed finite JSON",
+      "mode": "malformed",
+      "configuredTimeoutMs": 100,
+      "expected": "rest",
+      "passed": true,
+      "signalAborted": false,
+      "events": [
+        {
+          "event": "native_fetch_start",
+          "ms": 0.5
+        },
+        {
+          "event": "server_request",
+          "ms": 2.1
+        },
+        {
+          "event": "server_response_close",
+          "ms": 2.3,
+          "finished": true,
+          "serverCleanup": false
+        },
+        {
+          "event": "client_headers_received",
+          "ms": 2.9,
+          "status": 200
+        },
+        {
+          "event": "negotiation_settled",
+          "ms": 3.5,
+          "transport": "rest"
+        },
+        {
+          "event": "harness_cleanup",
+          "ms": 154.2
+        }
+      ]
+    },
+    {
+      "label": "candidate headers never arrive",
+      "mode": "headers-stall",
+      "configuredTimeoutMs": 100,
+      "expected": "rest",
+      "passed": true,
+      "signalAborted": true,
+      "events": [
+        {
+          "event": "native_fetch_start",
+          "ms": 0.6
+        },
+        {
+          "event": "server_request",
+          "ms": 2.2
+        },
+        {
+          "event": "client_abort",
+          "ms": 100.7
+        },
+        {
+          "event": "negotiation_settled",
+          "ms": 101.4,
+          "transport": "rest"
+        },
+        {
+          "event": "harness_cleanup",
+          "ms": 101.5
+        },
+        {
+          "event": "server_response_close",
+          "ms": 103.2,
+          "finished": false,
+          "serverCleanup": true
+        }
+      ]
+    },
+    {
+      "label": "candidate default deadline with stalled body",
+      "mode": "body-stall",
+      "configuredTimeoutMs": "default 5000",
+      "expected": "rest",
+      "passed": true,
+      "signalAborted": true,
+      "events": [
+        {
+          "event": "native_fetch_start",
+          "ms": 0.4
+        },
+        {
+          "event": "server_request",
+          "ms": 2
+        },
+        {
+          "event": "client_headers_received",
+          "ms": 2.6,
+          "status": 200
+        },
+        {
+          "event": "default_deadline_still_pending",
+          "ms": 4805.7
+        },
+        {
+          "event": "client_abort",
+          "ms": 5015.5
+        },
+        {
+          "event": "negotiation_settled",
+          "ms": 5042.4,
+          "transport": "rest"
+        },
+        {
+          "event": "harness_cleanup",
+          "ms": 5043.6
+        },
+        {
+          "event": "server_response_close",
+          "ms": 5126.7,
+          "finished": false,
+          "serverCleanup": true
+        }
+      ]
+    },
+    {
+      "label": "base body stall control",
+      "mode": "body-stall",
+      "configuredTimeoutMs": 100,
+      "expected": "pending at 450ms until forced teardown",
+      "passed": true,
+      "signalAborted": false,
+      "events": [
+        {
+          "event": "native_fetch_start",
+          "ms": 75.4
+        },
+        {
+          "event": "server_request",
+          "ms": 80.7
+        },
+        {
+          "event": "client_headers_received",
+          "ms": 83.1,
+          "status": 200
+        },
+        {
+          "event": "still_pending_at_observation_window",
+          "ms": 525.5,
+          "configuredTimeoutMs": 100
+        },
+        {
+          "event": "harness_forced_disconnect",
+          "ms": 525.5
+        },
+        {
+          "event": "negotiation_settled",
+          "ms": 526.7,
+          "transport": "rest"
+        },
+        {
+          "event": "harness_cleanup",
+          "ms": 526.8
+        }
+      ]
+    }
+  ]
+}
