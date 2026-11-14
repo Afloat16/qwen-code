@@ -1,0 +1,181 @@
+name: Qwen round 8 exact candidate validation
+on:
+  push:
+    branches:
+      - validation/qwen17120-r4-candidate-20261114
+permissions:
+  contents: read
+jobs:
+  mcp:
+    name: Exact MCP candidate full validation
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      CI: 'true'
+      PNPM_CONFIG_WORKSPACE_CONCURRENCY: '1'
+      CANDIDATE_SHA: ddfab5ea762c2e70ce46754d8898cce25c3020d5
+      CANDIDATE_TREE: a2f4efec0b37e4c921381684bd214a8fb8793fad
+    steps:
+      - name: Check out validation scripts
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          path: verification
+          sparse-checkout: .github/validation/round8-exact
+          persist-credentials: false
+      - name: Check out exact MCP candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: ddfab5ea762c2e70ce46754d8898cce25c3020d5
+          path: source
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify exact source and three-file scope
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen17120-r4-validation"
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$CANDIDATE_TREE"
+          test "$(git rev-parse HEAD^)" = 40978fcaae8aed6cbc67bc4c11e46b099a4450bd
+          git diff --check HEAD^ HEAD
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess
+          from pathlib import Path
+          paths = ['packages/cli/src/cli.test.ts', 'packages/cli/src/commands/mcp/add.test.ts', 'packages/cli/src/commands/mcp/add.ts']
+          changed = subprocess.check_output(['git', 'diff', '--name-only', 'HEAD^', 'HEAD'], text=True).splitlines()
+          assert sorted(changed) == sorted(paths), changed
+          identity = {path: {'git_blob': subprocess.check_output(['git', 'hash-object', path], text=True).strip(), 'sha256': hashlib.sha256(Path(path).read_bytes()).hexdigest()} for path in paths}
+          print(json.dumps(identity, indent=2))
+          (Path(os.environ['RUNNER_TEMP']) / 'qwen17120-r4-validation/source-identity.json').write_text(json.dumps(identity, indent=2) + '\n')
+          PY
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install locked dependencies
+        env:
+          QWEN_SKIP_PREPARE: '1'
+        run: |
+          corepack enable
+          node --version
+          corepack pnpm --version
+          corepack pnpm install --frozen-lockfile --reporter=append-only
+      - name: Check all changed files
+        run: |
+          changed=(packages/cli/src/cli.test.ts packages/cli/src/commands/mcp/add.ts packages/cli/src/commands/mcp/add.test.ts)
+          corepack pnpm exec eslint "${changed[@]}" --max-warnings 0
+          corepack pnpm exec prettier --check "${changed[@]}"
+      - name: Check exact builder typing and parser
+        run: node ../verification/.github/validation/round8-exact/17120/builder-preflight.mjs
+      - name: Build all workspaces
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/qwen17120-r4-validation/build.log"
+      - name: Check all workspace and integration types
+        run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/qwen17120-r4-validation/typecheck.log"
+      - name: Bundle the exact candidate
+        run: npm run bundle 2>&1 | tee "$RUNNER_TEMP/qwen17120-r4-validation/bundle-build.log"
+      - name: Verify committed suites and parent-source counterfactual
+        run: python3 ../verification/.github/validation/round8-exact/17120/validate-tests.py
+      - name: Verify real bundle parsing and settings writes
+        run: python3 ../verification/.github/validation/round8-exact/17120/bundle.py
+      - name: Verify tracked source remains unchanged
+        run: git diff --exit-code
+      - name: Preserve exact-head evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen17120-r4-${{ env.CANDIDATE_SHA }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qwen17120-r4-validation/
+          if-no-files-found: error
+          retention-days: 14
+  qwen17108:
+    name: Qwen 17108 exact build, types, bundle and refresh regressions
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      CI: 'true'
+      PNPM_CONFIG_WORKSPACE_CONCURRENCY: '1'
+      NODE_OPTIONS: --max-old-space-size=6144
+      SOURCE_SHA: c950a2af68ffaea34ef4290cb0dc720b01ebdb5b
+      SOURCE_TREE: 25bfebdb05bacef1c9a8e2d21360351776145cfc
+    steps:
+      - name: Check out validation scripts
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          path: verification
+          persist-credentials: false
+          sparse-checkout: .github/validation
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: c950a2af68ffaea34ef4290cb0dc720b01ebdb5b
+          path: source
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify source identity
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen17108-r4-owner"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$SOURCE_TREE"
+          test "$(git rev-parse HEAD^)" = caa528f0d4dcccf5521971d902257c3ecdeed8cd
+          git show --no-patch --format=fuller HEAD | tee "$RUNNER_TEMP/qwen17108-r4-owner/source.log"
+          git diff --check HEAD^ HEAD
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install frozen dependencies
+        env:
+          QWEN_SKIP_PREPARE: '1'
+        run: |
+          corepack enable
+          {
+            node --version
+            corepack pnpm --version
+            corepack pnpm install --frozen-lockfile --reporter=append-only
+          } 2>&1 | tee "$RUNNER_TEMP/qwen17108-r4-owner/install.log"
+      - name: Check candidate formatting
+        run: |
+          corepack pnpm exec prettier --check \
+            packages/web-shell/client/components/messages/MemoryMessage.tsx \
+            packages/web-shell/client/components/messages/MemoryMessage.refresh.test.tsx \
+            packages/web-shell/client/i18n.tsx
+      - name: Build all workspaces
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/qwen17108-r4-owner/build.log"
+      - name: Check all workspace and integration types
+        run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/qwen17108-r4-owner/typecheck.log"
+      - name: Build production bundle
+        run: npm run bundle 2>&1 | tee "$RUNNER_TEMP/qwen17108-r4-owner/bundle.log"
+      - name: Lint changed source and tests
+        run: |
+          corepack pnpm exec eslint \
+            packages/web-shell/client/components/messages/MemoryMessage.tsx \
+            packages/web-shell/client/components/messages/MemoryMessage.refresh.test.tsx \
+            packages/web-shell/client/i18n.tsx \
+            --max-warnings 0
+      - name: Verify focused suites and required counterfactuals
+        run: python3 ../verification/.github/validation/17108-r4-owner.py
+      - name: Check final source restoration
+        run: |
+          git diff --exit-code
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git hash-object packages/web-shell/client/components/messages/MemoryMessage.tsx)" = 33a2cfc46ab2d520ba10a879cc9e11d06e3ac433
+          test "$(git hash-object packages/web-shell/client/components/messages/MemoryMessage.refresh.test.tsx)" = b7b73cfe9336e399a93a885b8870d32402db6e2d
+          test "$(git hash-object packages/web-shell/client/i18n.tsx)" = 162224d51039108b89dd810e3daee313d13cc1c9
+      - name: Preserve exact candidate evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen17108-r4-owner
+          path: ${{ runner.temp }}/qwen17108-r4-owner/
+          if-no-files-found: error
+          retention-days: 14
