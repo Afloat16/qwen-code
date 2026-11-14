@@ -1,0 +1,80 @@
+name: Qwen round 8 independent baseline
+on:
+  push:
+    branches:
+      - validation/qwen-round8-independent-baseline-20261114
+permissions:
+  contents: read
+jobs:
+  reproduce:
+    name: Independent baseline ${{ matrix.pr }}
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pr: '17120'
+            sha: 40978fcaae8aed6cbc67bc4c11e46b099a4450bd
+            tree: a3cc3760cc5ea0eae582e062ddafabd2f28c16f5
+          - pr: '17108'
+            sha: caa528f0d4dcccf5521971d902257c3ecdeed8cd
+            tree: 7aa78313c8489ed31b7e8d9e0a4b0ce1763a608e
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      CI: 'true'
+      SOURCE_SHA: ${{ matrix.sha }}
+      SOURCE_TREE: ${{ matrix.tree }}
+      PHASE: baseline
+    steps:
+      - name: Check out independent test scripts
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          path: verification
+          sparse-checkout: .github/validation/round8-independent
+          persist-credentials: false
+      - name: Check out unchanged reviewed source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: ${{ matrix.sha }}
+          path: source
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify source identity and global CLI availability
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$SOURCE_TREE"
+          if command -v qwen; then qwen --version; else printf '%s\n' 'Global qwen unavailable; using independent test-script fallback against unchanged source.'; fi
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install locked dependencies without a production rebuild
+        env:
+          QWEN_SKIP_PREPARE: '1'
+        run: |
+          corepack enable
+          node --version
+          corepack pnpm --version
+          corepack pnpm install --frozen-lockfile --reporter=append-only
+      - name: Reproduce literal MCP argument loss
+        if: matrix.pr == '17120'
+        run: node ../verification/.github/validation/round8-independent/mcp-probe.mjs
+      - name: Reproduce memory refresh and save race
+        if: matrix.pr == '17108'
+        run: python3 ../verification/.github/validation/round8-independent/run.py baseline
+      - name: Preserve independent evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: round8-independent-${{ matrix.pr }}-${{ matrix.sha }}
+          path: |
+            ${{ runner.temp }}/qwen-independent-round8/
+            ${{ runner.temp }}/qwen17108-r4-independent-baseline/
+          if-no-files-found: warn
+          retention-days: 14
