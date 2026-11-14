@@ -20,14 +20,14 @@ jobs:
     env:
       CI: 'true'
       NODE_OPTIONS: --max-old-space-size=6144
-      SOURCE_SHA: 555cd21b7ec6f3d082e5a5a018bc14a7acc74f36
-      SOURCE_TREE: 4d9e584959fe77f6cbee5a690d597817de4cd7f8
+      SOURCE_SHA: eac13b93b95bc4eff6a7f44e8c15518f7b9b3d0b
+      SOURCE_TREE: 48f4088434f229b37f965c440bda843680d68a26
     steps:
       - name: Check out candidate
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: Afloat16/qwen-code
-          ref: 555cd21b7ec6f3d082e5a5a018bc14a7acc74f36
+          ref: eac13b93b95bc4eff6a7f44e8c15518f7b9b3d0b
           path: source
           persist-credentials: false
           fetch-depth: 2
@@ -60,6 +60,71 @@ jobs:
       - name: Candidate regression suites
         working-directory: source/packages/cli
         run: corepack pnpm exec vitest run src/commands/mcp.test.ts src/commands/mcp/add.test.ts src/cli.test.ts --coverage.enabled=false --maxWorkers=2 --no-file-parallelism
+      - name: Built CLI persistence boundaries
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import os from 'node:os';
+          import path from 'node:path';
+          import { spawnSync } from 'node:child_process';
+          import assert from 'node:assert/strict';
+          const cli = path.resolve('dist/cli.js');
+          const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-blockers-'));
+          const ambiguous = [
+            ['run', '--env-file', '.env', 'image'],
+            ['run', '--env-file=.env', 'image'],
+            ['run', '--timeout-secs', '5', 'image'],
+            ['run', '--header-x=y', 'image'],
+            ['run', '--trust-all', 'image'],
+            ['run', '--description-x', 'value', 'image'],
+            ['run', '--scope-x', 'value', 'image'],
+          ];
+          const controls = [
+            { tail: ['run', '-d', 'alpine'], args: ['run', '-d', 'alpine'] },
+            { tail: ['run', '--args', 'value'], args: ['run', '--args', 'value'] },
+            { tail: ['run', '--args=value', 'image'], args: ['run', '--args=value', 'image'] },
+            { tail: ['0x10', '--timeout', '1500'], args: ['0x10'], timeout: 1500 },
+            { tail: ['infix', '--', 'dash', '--env-file', '.env'], args: ['infix', 'dash', '--env-file', '.env'] },
+          ];
+          let count = 0;
+          try {
+            for (const prefix of [[], ['--debug']]) {
+              for (const entry of [...ambiguous.map(tail => ({ tail, reject: true })), ...controls]) {
+                const dir = path.join(root, String(++count));
+                const config = path.join(dir, 'config');
+                const work = path.join(dir, 'workspace');
+                fs.mkdirSync(config, { recursive: true });
+                fs.mkdirSync(work);
+                const settings = path.join(config, 'settings.json');
+                const original = JSON.stringify({ $version: 4, mcpServers: { sentinel: { command: 'node', args: [] } } });
+                fs.writeFileSync(settings, original);
+                const result = spawnSync(process.execPath, [cli, 'mcp', ...prefix, 'add', 'candidate', 'docker', ...entry.tail], {
+                  cwd: work,
+                  env: { ...process.env, QWEN_HOME: config },
+                  encoding: 'utf8',
+                  timeout: 30000,
+                });
+                assert.equal(result.error, undefined);
+                if (entry.reject) {
+                  assert.equal(result.status, 1, result.stdout + result.stderr);
+                  assert.match(result.stdout + result.stderr, /Unknown arguments/);
+                  assert.equal(fs.readFileSync(settings, 'utf8'), original);
+                  assert.equal(fs.existsSync(path.join(config, 'mcp-oauth-tokens.json')), false);
+                } else {
+                  assert.equal(result.status, 0, result.stdout + result.stderr);
+                  const saved = JSON.parse(fs.readFileSync(settings, 'utf8')).mcpServers;
+                  assert.deepEqual(saved.sentinel, { command: 'node', args: [] });
+                  assert.deepEqual(saved.candidate.args, entry.args);
+                  assert.equal(saved.candidate.timeout, entry.timeout);
+                }
+                console.log(JSON.stringify({ prefix, tail: entry.tail, exit: result.status, expectedRejection: !!entry.reject }));
+              }
+            }
+            console.log('Built CLI cases passed: ' + count);
+          } finally {
+            fs.rmSync(root, { recursive: true, force: true });
+          }
+          JS
       - name: Baseline must reproduce both blockers
         run: |
           trap 'git restore packages/cli/src/commands/mcp/add.ts packages/cli/src/commands/mcp.test.ts' EXIT
