@@ -1,0 +1,60 @@
+{
+  "phase": "baseline",
+  "source": "caa528f0d4dcccf5521971d902257c3ecdeed8cd",
+  "command": [
+    "corepack",
+    "pnpm",
+    "exec",
+    "vitest",
+    "run",
+    "client/components/messages/MemoryMessage.round8-independent.test.tsx",
+    "--maxWorkers=1",
+    "--minWorkers=1",
+    "--retry=0",
+    "--reporter=json",
+    "--reporter=default",
+    "--outputFile.json=/workspace/scratch/2d524b759857/round8-independent-results/qwen17108-r4-independent-baseline/tests.json"
+  ],
+  "exit_code": 1,
+  "total": 6,
+  "passed": 3,
+  "failed": 3,
+  "pending": 0,
+  "failed_assertions": [
+    {
+      "name": "MemoryMessage R4 independent reproduction acknowledges a same-path event supersedes a refresh that resolves before retry recovery",
+      "messages": [
+        "AssertionError: expected [ [ \u2026(2) ] ] to deeply equal []\n    at /workspace/scratch/2d524b759857/round8-qwen-memory-source/packages/web-shell/client/components/messages/MemoryMessage.round8-independent.test.tsx:268:83\n    at file:///workspace/scratch/2d524b759857/round8-qwen-memory-source/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+      ]
+    },
+    {
+      "name": "MemoryMessage R4 independent reproduction acknowledges a same-path event supersedes a refresh that rejects before retry recovery",
+      "messages": [
+        "AssertionError: expected [ [ \u2026(2) ] ] to deeply equal []\n    at /workspace/scratch/2d524b759857/round8-qwen-memory-source/packages/web-shell/client/components/messages/MemoryMessage.round8-independent.test.tsx:268:83\n    at file:///workspace/scratch/2d524b759857/round8-qwen-memory-source/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+      ]
+    },
+    {
+      "name": "MemoryMessage R4 independent reproduction preserves successful save feedback after an older refresh completes",
+      "messages": [
+        "AssertionError: expected undefined to be defined\n    at /workspace/scratch/2d524b759857/round8-qwen-memory-source/packages/web-shell/client/components/messages/MemoryMessage.round8-independent.test.tsx:331:24\n    at Proxy.process.env.NODE_ENV.exports.act (/workspace/scratch/2d524b759857/round8-qwen-memory-source/node_modules/react/cjs/react.development.js:814:22)\n    at click (/workspace/scratch/2d524b759857/round8-qwen-memory-source/packages/web-shell/client/components/messages/MemoryMessage.round8-independent.test.tsx:329:7)\n    at /workspace/scratch/2d524b759857/round8-qwen-memory-source/packages/web-shell/client/components/messages/MemoryMessage.round8-independent.test.tsx:344:11\n    at file:///workspace/scratch/2d524b759857/round8-qwen-memory-source/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+      ]
+    }
+  ],
+  "unhandled_errors": 0,
+  "accepted": true,
+  "source_before": {
+    "packages/web-shell/client/components/messages/MemoryMessage.tsx": "3c1cbaa812cde7eb9a26232d68fa5183a299b6b44c5e77456a16f03ba7ff5bbb",
+    "packages/web-shell/client/daemon/workspace/hooks/useDaemonResource.ts": "ea9ccf8c6bf01000edbeae54e40e6322691054e0617dd42b709dbc9d3a82075d",
+    "packages/web-shell/client/daemon/workspace/hooks/useDaemonMemory.ts": "4cf56008f393755bef7e6ca4a0283d30502d663421ee2357c47fb6a2bcfb000e",
+    "packages/web-shell/client/daemon/workspace/hooks/useWorkspaceEventReload.ts": "601fc336a497122bdccbd993ab6ae94ff8711082f8003a3efb9ea51b7956c781"
+  },
+  "source_after": {
+    "packages/web-shell/client/components/messages/MemoryMessage.tsx": "3c1cbaa812cde7eb9a26232d68fa5183a299b6b44c5e77456a16f03ba7ff5bbb",
+    "packages/web-shell/client/daemon/workspace/hooks/useDaemonResource.ts": "ea9ccf8c6bf01000edbeae54e40e6322691054e0617dd42b709dbc9d3a82075d",
+    "packages/web-shell/client/daemon/workspace/hooks/useDaemonMemory.ts": "4cf56008f393755bef7e6ca4a0283d30502d663421ee2357c47fb6a2bcfb000e",
+    "packages/web-shell/client/daemon/workspace/hooks/useWorkspaceEventReload.ts": "601fc336a497122bdccbd993ab6ae94ff8711082f8003a3efb9ea51b7956c781"
+  },
+  "source_unchanged": true,
+  "tracked_diff_unchanged": true,
+  "temporary_test_removed": true
+}

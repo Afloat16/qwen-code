@@ -1,0 +1,222 @@
+{
+  "phase": "verification",
+  "source": "ddfab5ea762c2e70ce46754d8898cce25c3020d5",
+  "boundary": "Unchanged production command and builder extracted with TypeScript AST; real locked yargs parser and middleware, observer handler only. Does not execute production settings writer, whole CLI, or model.",
+  "method": "test-script",
+  "bootstrap": "ESM yargs entrypoint, matching production cli.ts import",
+  "versions": {
+    "node": "v24.22.1",
+    "typescript": "5.8.3",
+    "yargs": "17.7.2"
+  },
+  "source_sha256": "fb4854727e2e70785f4497d372fdcfdf5ae6f24e41cfb3a69aaf3ac086c10fad",
+  "builder_sha256": "cbf5ae9375ec1235b6a8471151a97312d079fc1b50c92baf350a833d405106fb",
+  "observations": [
+    {
+      "name": "args-separated",
+      "tail": [
+        "run",
+        "image",
+        "--args",
+        "value"
+      ],
+      "actual": [
+        "run",
+        "image",
+        "--args",
+        "value"
+      ],
+      "expected": [
+        "run",
+        "image",
+        "--args",
+        "value"
+      ],
+      "timeoutType": "undefined",
+      "handlerInvoked": true,
+      "pass": true
+    },
+    {
+      "name": "args-equals",
+      "tail": [
+        "run",
+        "image",
+        "--args=value",
+        "img"
+      ],
+      "actual": [
+        "run",
+        "image",
+        "--args=value",
+        "img"
+      ],
+      "expected": [
+        "run",
+        "image",
+        "--args=value",
+        "img"
+      ],
+      "timeoutType": "undefined",
+      "handlerInvoked": true,
+      "pass": true
+    },
+    {
+      "name": "similar-name",
+      "tail": [
+        "run",
+        "image",
+        "--argsNote",
+        "x"
+      ],
+      "actual": [
+        "run",
+        "image",
+        "--argsNote",
+        "x"
+      ],
+      "expected": [
+        "run",
+        "image",
+        "--argsNote",
+        "x"
+      ],
+      "timeoutType": "undefined",
+      "handlerInvoked": true,
+      "pass": true
+    },
+    {
+      "name": "serverArgs-collision",
+      "tail": [
+        "run",
+        "image",
+        "--serverArgs",
+        "value"
+      ],
+      "actual": [
+        "run",
+        "image",
+        "--serverArgs",
+        "value"
+      ],
+      "expected": [
+        "run",
+        "image",
+        "--serverArgs",
+        "value"
+      ],
+      "timeoutType": "undefined",
+      "handlerInvoked": true,
+      "pass": true
+    },
+    {
+      "name": "server-args-collision",
+      "tail": [
+        "run",
+        "image",
+        "--server-args",
+        "value"
+      ],
+      "actual": [
+        "run",
+        "image",
+        "--server-args",
+        "value"
+      ],
+      "expected": [
+        "run",
+        "image",
+        "--server-args",
+        "value"
+      ],
+      "timeoutType": "undefined",
+      "handlerInvoked": true,
+      "pass": true
+    },
+    {
+      "name": "numeric-literals",
+      "tail": [
+        "0x10",
+        "1e3",
+        "007"
+      ],
+      "actual": [
+        "0x10",
+        "1e3",
+        "007"
+      ],
+      "expected": [
+        "0x10",
+        "1e3",
+        "007"
+      ],
+      "timeoutType": "undefined",
+      "handlerInvoked": true,
+      "pass": true
+    },
+    {
+      "name": "timeout-number",
+      "tail": [
+        "run",
+        "image",
+        "--timeout",
+        "1500"
+      ],
+      "actual": [
+        "run",
+        "image"
+      ],
+      "expected": [
+        "run",
+        "image"
+      ],
+      "timeout": 1500,
+      "timeoutType": "number",
+      "handlerInvoked": true,
+      "pass": true
+    },
+    {
+      "name": "separator-data",
+      "tail": [
+        "run",
+        "image",
+        "--",
+        "--args",
+        "0x10",
+        "--timeout",
+        "1500"
+      ],
+      "actual": [
+        "run",
+        "image",
+        "--args",
+        "0x10",
+        "--timeout",
+        "1500"
+      ],
+      "expected": [
+        "run",
+        "image",
+        "--args",
+        "0x10",
+        "--timeout",
+        "1500"
+      ],
+      "timeoutType": "undefined",
+      "handlerInvoked": true,
+      "pass": true
+    },
+    {
+      "name": "empty-args",
+      "tail": [],
+      "actual": [],
+      "expected": [],
+      "timeoutType": "undefined",
+      "handlerInvoked": true,
+      "pass": true
+    }
+  ],
+  "passed": 9,
+  "failed": 0,
+  "source_unchanged": true,
+  "tracked_diff_unchanged": true
+}

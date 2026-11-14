@@ -59,5 +59,6 @@ mkdirSync(out,{recursive:true});
 writeFileSync(path.join(out,'report.json'),JSON.stringify(report,null,2)+'\n');
 console.log('INDEPENDENT_MCP_REPORT '+JSON.stringify(report));
 assert(report.source_unchanged&&report.tracked_diff_unchanged);
-if(phase==='baseline')assert.deepEqual(failures.map(x=>x.name),['args-separated','args-equals']);
+if(phase==='baseline')assert.deepEqual(failures.map(x=>x.name),['args-separated','args-equals','separator-data']);
 else assert.equal(failures.length,0);
+
