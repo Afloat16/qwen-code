@@ -1,0 +1,41 @@
+{
+  "phase": "verification",
+  "source": "c950a2af68ffaea34ef4290cb0dc720b01ebdb5b",
+  "command": [
+    "corepack",
+    "pnpm",
+    "exec",
+    "vitest",
+    "run",
+    "client/components/messages/MemoryMessage.round8-independent.test.tsx",
+    "--maxWorkers=1",
+    "--minWorkers=1",
+    "--retry=0",
+    "--reporter=json",
+    "--reporter=default",
+    "--outputFile.json=/workspace/scratch/2d524b759857/round8-independent-final-results/qwen17108-r4-independent-verification/tests.json"
+  ],
+  "exit_code": 0,
+  "total": 6,
+  "passed": 6,
+  "failed": 0,
+  "pending": 0,
+  "failed_assertions": [],
+  "unhandled_errors": 0,
+  "accepted": true,
+  "source_before": {
+    "packages/web-shell/client/components/messages/MemoryMessage.tsx": "d15d26aca67d08dfcade723411189a3b053f172b2d8da88654026944f8b65419",
+    "packages/web-shell/client/daemon/workspace/hooks/useDaemonResource.ts": "ea9ccf8c6bf01000edbeae54e40e6322691054e0617dd42b709dbc9d3a82075d",
+    "packages/web-shell/client/daemon/workspace/hooks/useDaemonMemory.ts": "4cf56008f393755bef7e6ca4a0283d30502d663421ee2357c47fb6a2bcfb000e",
+    "packages/web-shell/client/daemon/workspace/hooks/useWorkspaceEventReload.ts": "601fc336a497122bdccbd993ab6ae94ff8711082f8003a3efb9ea51b7956c781"
+  },
+  "source_after": {
+    "packages/web-shell/client/components/messages/MemoryMessage.tsx": "d15d26aca67d08dfcade723411189a3b053f172b2d8da88654026944f8b65419",
+    "packages/web-shell/client/daemon/workspace/hooks/useDaemonResource.ts": "ea9ccf8c6bf01000edbeae54e40e6322691054e0617dd42b709dbc9d3a82075d",
+    "packages/web-shell/client/daemon/workspace/hooks/useDaemonMemory.ts": "4cf56008f393755bef7e6ca4a0283d30502d663421ee2357c47fb6a2bcfb000e",
+    "packages/web-shell/client/daemon/workspace/hooks/useWorkspaceEventReload.ts": "601fc336a497122bdccbd993ab6ae94ff8711082f8003a3efb9ea51b7956c781"
+  },
+  "source_unchanged": true,
+  "tracked_diff_unchanged": true,
+  "temporary_test_removed": true
+}

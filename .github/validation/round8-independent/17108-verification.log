@@ -1,0 +1,35 @@
+
+ RUN  v3.2.7 /workspace/scratch/2d524b759857/round8-qwen-memory-source/packages/web-shell/client
+
+stdout | components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > reports the list-load cause to both panel and transcript
+QWEN17108_INDEPENDENT {"label":"list-error","contentReadsDelta":0,"editDisabled":false,"panel":"WorkspaceUser/workspace/QWEN.mdRefreshEditworkspace not trustedexisting memory\n","messages":[["workspace not trusted","error"]],"outcomes":[{"hasData":false,"superseded":false}],"writes":0}
+
+stdout | components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > acknowledges a same-path event supersedes a refresh that resolves before retry recovery
+QWEN17108_INDEPENDENT {"label":"superseded-resolve","contentReadsDelta":0,"editDisabled":true,"panel":"WorkspaceUser/workspace/QWEN.mdRefreshEditMemory changed while refreshing. Please try again.No memory files found.","messages":[["Memory changed while refreshing. Please try again.","status"]],"outcomes":[{"hasData":false,"superseded":true}],"writes":0}
+
+stdout | components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > acknowledges a same-path event supersedes a refresh that resolves before retry recovery
+QWEN17108_INDEPENDENT {"label":"retry-after-superseded-resolve","contentReadsDelta":1,"editDisabled":false,"panel":"WorkspaceUser/workspace/QWEN.mdRefreshEditMemory refreshed.recovered current memory\n","messages":[["Memory changed while refreshing. Please try again.","status"]],"outcomes":[{"hasData":false,"superseded":true},{"hasData":true,"superseded":false}],"writes":0}
+
+stdout | components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > acknowledges a same-path event supersedes a refresh that rejects before retry recovery
+QWEN17108_INDEPENDENT {"label":"superseded-reject","contentReadsDelta":0,"editDisabled":true,"panel":"WorkspaceUser/workspace/QWEN.mdRefreshEditMemory changed while refreshing. Please try again.No memory files found.","messages":[["Memory changed while refreshing. Please try again.","status"]],"outcomes":[{"hasData":false,"superseded":true}],"writes":0}
+
+stdout | components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > acknowledges a same-path event supersedes a refresh that rejects before retry recovery
+QWEN17108_INDEPENDENT {"label":"retry-after-superseded-reject","contentReadsDelta":1,"editDisabled":false,"panel":"WorkspaceUser/workspace/QWEN.mdRefreshEditMemory refreshed.recovered current memory\n","messages":[["Memory changed while refreshing. Please try again.","status"]],"outcomes":[{"hasData":false,"superseded":true},{"hasData":true,"superseded":false}],"writes":0}
+
+stdout | components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > recovers a read-only panel on an uncontended refresh
+QWEN17108_INDEPENDENT {"label":"uncontended-control","contentReadsDelta":1,"editDisabled":false,"panel":"WorkspaceUser/workspace/QWEN.mdRefreshEditMemory refreshed.recovered current memory\n","messages":[],"outcomes":[{"hasData":true,"superseded":false}],"writes":0}
+
+stdout | components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > keeps generic feedback when an unavailable refresh has no cause
+QWEN17108_INDEPENDENT {"label":"unavailable-control","contentReadsDelta":0,"editDisabled":false,"panel":"WorkspaceUser/workspace/QWEN.mdRefreshEditCould not refresh memory. Please try again.existing memory\n","messages":[["Could not refresh memory. Please try again.","error"]],"outcomes":[{"hasData":false,"superseded":false}],"writes":0}
+
+stdout | components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > preserves successful save feedback after an older refresh completes
+QWEN17108_INDEPENDENT {"label":"refresh-then-save","contentReadsDelta":0,"editDisabled":false,"panel":"WorkspaceUser/workspace/QWEN.mdRefreshEditWorkspace saved: 16 bytes -> /workspace/QWEN.mdexisting memory\n","messages":[["Workspace saved: 16 bytes -> /workspace/QWEN.md","status"]],"outcomes":[{"hasData":false,"superseded":true}],"writes":1}
+
+ ✓ components/messages/MemoryMessage.round8-independent.test.tsx (6 tests) 115ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  22:08:31
+   Duration  1.98s (transform 1.12s, setup 23ms, collect 1.30s, tests 115ms, environment 337ms, prepare 57ms)
+
+JSON report written to /workspace/scratch/2d524b759857/round8-independent-final-results/qwen17108-r4-independent-verification/tests.json

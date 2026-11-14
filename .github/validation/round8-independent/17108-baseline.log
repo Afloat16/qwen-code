@@ -1,0 +1,86 @@
+
+ RUN  v3.2.7 /workspace/scratch/2d524b759857/round8-qwen-memory-source/packages/web-shell/client
+
+stdout | components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > reports the list-load cause to both panel and transcript
+QWEN17108_INDEPENDENT {"label":"list-error","contentReadsDelta":0,"editDisabled":false,"panel":"WorkspaceUser/workspace/QWEN.mdRefreshEditworkspace not trustedexisting memory\n","messages":[["workspace not trusted","error"]],"outcomes":[{"hasData":false,"superseded":false}],"writes":0}
+
+stdout | components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > acknowledges a same-path event supersedes a refresh that resolves before retry recovery
+QWEN17108_INDEPENDENT {"label":"superseded-resolve","contentReadsDelta":0,"editDisabled":true,"panel":"WorkspaceUser/workspace/QWEN.mdRefreshEditCould not refresh memory. Please try again.No memory files found.","messages":[["Could not refresh memory. Please try again.","error"]],"outcomes":[{"hasData":false,"superseded":true}],"writes":0}
+
+stdout | components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > acknowledges a same-path event supersedes a refresh that rejects before retry recovery
+QWEN17108_INDEPENDENT {"label":"superseded-reject","contentReadsDelta":0,"editDisabled":true,"panel":"WorkspaceUser/workspace/QWEN.mdRefreshEditCould not refresh memory. Please try again.No memory files found.","messages":[["Could not refresh memory. Please try again.","error"]],"outcomes":[{"hasData":false,"superseded":true}],"writes":0}
+
+stdout | components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > recovers a read-only panel on an uncontended refresh
+QWEN17108_INDEPENDENT {"label":"uncontended-control","contentReadsDelta":1,"editDisabled":false,"panel":"WorkspaceUser/workspace/QWEN.mdRefreshEditMemory refreshed.recovered current memory\n","messages":[],"outcomes":[{"hasData":true,"superseded":false}],"writes":0}
+
+stdout | components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > keeps generic feedback when an unavailable refresh has no cause
+QWEN17108_INDEPENDENT {"label":"unavailable-control","contentReadsDelta":0,"editDisabled":false,"panel":"WorkspaceUser/workspace/QWEN.mdRefreshEditCould not refresh memory. Please try again.existing memory\n","messages":[["Could not refresh memory. Please try again.","error"]],"outcomes":[{"hasData":false,"superseded":false}],"writes":0}
+
+stdout | components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > preserves successful save feedback after an older refresh completes
+QWEN17108_INDEPENDENT {"label":"refresh-then-save","contentReadsDelta":0,"editDisabled":false,"panel":"WorkspaceUser/workspace/QWEN.mdRefreshEditCould not refresh memory. Please try again.existing memory\n","messages":[["Workspace saved: 16 bytes -> /workspace/QWEN.md","status"],["Could not refresh memory. Please try again.","error"]],"outcomes":[{"hasData":false,"superseded":true}],"writes":1}
+
+ ❯ components/messages/MemoryMessage.round8-independent.test.tsx (6 tests | 3 failed) 132ms
+   ✓ MemoryMessage R4 independent reproduction > reports the list-load cause to both panel and transcript 45ms
+   × MemoryMessage R4 independent reproduction > acknowledges a same-path event supersedes a refresh that resolves before retry recovery 25ms
+     → expected [ [ …(2) ] ] to deeply equal []
+   × MemoryMessage R4 independent reproduction > acknowledges a same-path event supersedes a refresh that rejects before retry recovery 18ms
+     → expected [ [ …(2) ] ] to deeply equal []
+   ✓ MemoryMessage R4 independent reproduction > recovers a read-only panel on an uncontended refresh 13ms
+   ✓ MemoryMessage R4 independent reproduction > keeps generic feedback when an unavailable refresh has no cause 10ms
+   × MemoryMessage R4 independent reproduction > preserves successful save feedback after an older refresh completes 20ms
+     → expected 'WorkspaceUser/workspace/QWEN.mdRefres…' to contain 'Workspace saved: 16 bytes -> /workspa…'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > acknowledges a same-path event supersedes a refresh that resolves before retry recovery
+ FAIL  components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > acknowledges a same-path event supersedes a refresh that rejects before retry recovery
+AssertionError: expected [ [ …(2) ] ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   [
++     "Could not refresh memory. Please try again.",
++     "error",
++   ],
++ ]
+
+ ❯ components/messages/MemoryMessage.round8-independent.test.tsx:268:83
+    266|       expect(container.textContent).not.toContain('obsolete');
+    267|       expect(editDisabled()).toBe(true);
+    268|       expect(harness.onMessage.mock.calls.filter(([, type]) => type ==…
+       |                                                                                   ^
+    269|       expect(container.textContent).not.toContain('Could not refresh m…
+    270|       expect(container.textContent).toMatch(/Memory.*(?:changed|refres…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  components/messages/MemoryMessage.round8-independent.test.tsx > MemoryMessage R4 independent reproduction > preserves successful save feedback after an older refresh completes
+AssertionError: expected 'WorkspaceUser/workspace/QWEN.mdRefres…' to contain 'Workspace saved: 16 bytes -> /workspa…'
+
+- Expected
++ Received
+
+- Workspace saved: 16 bytes -> /workspace/QWEN.md
++ WorkspaceUser/workspace/QWEN.mdRefreshEditCould not refresh memory. Please try again.existing memory
++
+
+ ❯ components/messages/MemoryMessage.round8-independent.test.tsx:356:35
+    354|     await flush();
+    355|     recordCase('refresh-then-save', readsBefore);
+    356|     expect(container.textContent).toContain(savedMessage);
+       |                                   ^
+    357|     expect(harness.onMessage.mock.calls).toEqual([[savedMessage,'statu…
+    358|     expect(container.textContent).not.toContain('Could not refresh mem…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 3 passed (6)
+   Start at  22:07:47
+   Duration  1.97s (transform 994ms, setup 29ms, collect 1.17s, tests 132ms, environment 369ms, prepare 67ms)
+
+JSON report written to /workspace/scratch/2d524b759857/round8-independent-final-results/qwen17108-r4-independent-baseline/tests.json

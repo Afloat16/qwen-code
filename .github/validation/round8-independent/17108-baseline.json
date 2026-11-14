@@ -13,7 +13,7 @@
     "--retry=0",
     "--reporter=json",
     "--reporter=default",
-    "--outputFile.json=/workspace/scratch/2d524b759857/round8-independent-results/qwen17108-r4-independent-baseline/tests.json"
+    "--outputFile.json=/workspace/scratch/2d524b759857/round8-independent-final-results/qwen17108-r4-independent-baseline/tests.json"
   ],
   "exit_code": 1,
   "total": 6,
@@ -36,7 +36,7 @@
     {
       "name": "MemoryMessage R4 independent reproduction preserves successful save feedback after an older refresh completes",
       "messages": [
-        "AssertionError: expected undefined to be defined\n    at /workspace/scratch/2d524b759857/round8-qwen-memory-source/packages/web-shell/client/components/messages/MemoryMessage.round8-independent.test.tsx:331:24\n    at Proxy.process.env.NODE_ENV.exports.act (/workspace/scratch/2d524b759857/round8-qwen-memory-source/node_modules/react/cjs/react.development.js:814:22)\n    at click (/workspace/scratch/2d524b759857/round8-qwen-memory-source/packages/web-shell/client/components/messages/MemoryMessage.round8-independent.test.tsx:329:7)\n    at /workspace/scratch/2d524b759857/round8-qwen-memory-source/packages/web-shell/client/components/messages/MemoryMessage.round8-independent.test.tsx:344:11\n    at file:///workspace/scratch/2d524b759857/round8-qwen-memory-source/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+        "AssertionError: expected 'WorkspaceUser/workspace/QWEN.mdRefres\u2026' to contain 'Workspace saved: 16 bytes -> /workspa\u2026'\n    at /workspace/scratch/2d524b759857/round8-qwen-memory-source/packages/web-shell/client/components/messages/MemoryMessage.round8-independent.test.tsx:356:35\n    at file:///workspace/scratch/2d524b759857/round8-qwen-memory-source/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
       ]
     }
   ],

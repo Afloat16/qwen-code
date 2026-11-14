@@ -341,7 +341,7 @@ describe('MemoryMessage R4 independent reproduction', () => {
     harness.loadMemoryStatus.mockImplementationOnce(() => oldRefresh.promise);
     harness.writeMemory.mockImplementationOnce(() => save.promise);
     await refresh();
-    await click('Save');
+    await click('Save Memory');
     expect(harness.writeMemory).toHaveBeenCalledWith({scope:'workspace',mode:'replace',content:'existing memory\n'});
     await act(async () => {save.resolve({bytesWritten:16,filePath:'/workspace/QWEN.md'});});
     await flush();
