@@ -11,7 +11,7 @@ out.mkdir(parents=True, exist_ok=True)
 candidate = os.environ['CANDIDATE_SHA']
 parent = '40978fcaae8aed6cbc67bc4c11e46b099a4450bd'
 assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip() == candidate
-assert subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], text=True).strip() == 'a2f4efec0b37e4c921381684bd214a8fb8793fad'
+assert subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], text=True).strip() == '52d17024a24458da427872ae8392e2d450a7a095'
 assert subprocess.check_output(['git', 'rev-parse', 'HEAD^'], text=True).strip() == parent
 source = repo / 'packages/cli/src/commands/mcp/add.ts'
 original = source.read_bytes()
