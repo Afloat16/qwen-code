@@ -1,0 +1,78 @@
+{
+  "source": "9c48bdcd106ee04f792dfa754866d00bb8fc19df",
+  "boundary": "Type/parser preflight of the exact extracted production builder. It does not execute the production handler, settings writer, full CLI, or repository test suites.",
+  "accepted": true,
+  "versions": {
+    "yargs": "17.7.2",
+    "yargsTypes": "17.0.33",
+    "typescript": "5.8.3"
+  },
+  "positional_type_declaration": [
+    {
+      "line": 560,
+      "text": "         */\n        positional<K extends keyof T, O extends PositionalOptions>(\n            key: K,\n            opt: O,\n        ): Argv<Omit<T, K> & { [key in K]: InferredOptionType<O> }>;"
+    },
+    {
+      "line": 564,
+      "text": "        ): Argv<Omit<T, K> & { [key in K]: InferredOptionType<O> }>;\n        positional<K extends string, O extends PositionalOptions>(\n            key: K,\n            opt: O,\n        ): Argv<T & { [key in K]: InferredOptionType<O> }>;"
+    },
+    {
+      "line": 788,
+      "text": "        /** boolean, interpret option as an array, see `array()` */\n        array?: boolean | undefined;\n        /**  boolean, interpret option as a boolean flag, see `boolean()` */\n        boolean?: boolean | undefined;\n        /** value or array of values, limit valid option arguments to a predefined set, see `choices()` */"
+    },
+    {
+      "line": 857,
+      "text": "\n    interface PositionalOptions {\n        /** string or array of strings, see `alias()` */\n        alias?: string | readonly string[] | undefined;\n        /** boolean, interpret option as an array, see `array()` */"
+    },
+    {
+      "line": 861,
+      "text": "        /** boolean, interpret option as an array, see `array()` */\n        array?: boolean | undefined;\n        /** value or array of values, limit valid option arguments to a predefined set, see `choices()` */\n        choices?: Choices | undefined;\n        /** function, coerce or transform parsed command line values into another value, see `coerce()` */"
+    },
+    {
+      "line": 967,
+      "text": "        : O extends { type: \"array\"; normalize: true } ? string[]\n        : O extends { array: true; choices: ReadonlyArray<infer C> } ? C[]\n        : O extends { array: true; type: \"string\" } ? string[]\n        : O extends { array: true; type: \"number\" } ? number[]\n        : O extends { array: true; string: true } ? string[]"
+    },
+    {
+      "line": 968,
+      "text": "        : O extends { array: true; choices: ReadonlyArray<infer C> } ? C[]\n        : O extends { array: true; type: \"string\" } ? string[]\n        : O extends { array: true; type: \"number\" } ? number[]\n        : O extends { array: true; string: true } ? string[]\n        : O extends { array: true; number: true } ? number[]"
+    },
+    {
+      "line": 969,
+      "text": "        : O extends { array: true; type: \"string\" } ? string[]\n        : O extends { array: true; type: \"number\" } ? number[]\n        : O extends { array: true; string: true } ? string[]\n        : O extends { array: true; number: true } ? number[]\n        : O extends { array: true; normalize: true } ? string[]"
+    },
+    {
+      "line": 970,
+      "text": "        : O extends { array: true; type: \"number\" } ? number[]\n        : O extends { array: true; string: true } ? string[]\n        : O extends { array: true; number: true } ? number[]\n        : O extends { array: true; normalize: true } ? string[]\n        : O extends { choices: ReadonlyArray<infer C> } ? C"
+    },
+    {
+      "line": 971,
+      "text": "        : O extends { array: true; string: true } ? string[]\n        : O extends { array: true; number: true } ? number[]\n        : O extends { array: true; normalize: true } ? string[]\n        : O extends { choices: ReadonlyArray<infer C> } ? C\n        : O extends { type: \"array\" } ? Array<string | number>"
+    },
+    {
+      "line": 972,
+      "text": "        : O extends { array: true; number: true } ? number[]\n        : O extends { array: true; normalize: true } ? string[]\n        : O extends { choices: ReadonlyArray<infer C> } ? C\n        : O extends { type: \"array\" } ? Array<string | number>\n        : O extends { type: \"boolean\" } ? boolean"
+    },
+    {
+      "line": 978,
+      "text": "        : O extends { type: \"string\" } ? string\n        : O extends { array: true } ? Array<string | number>\n        : O extends { boolean: true } ? boolean\n        : O extends { number: true } ? number\n        : O extends { string: true } ? string"
+    }
+  ],
+  "builder_sha256": "3ff8aa6667619213001b7b16d85e2ad675eb035be0a2dbec3ff5f9673a10263b",
+  "compiler_config": "Repository tsconfig compiler options; only emit/build-cache options disabled for the standalone extracted-builder probe.",
+  "type_diagnostics": [],
+  "type_preflight_passed": true,
+  "parser_preflight_passed": true,
+  "source_before": {
+    "packages/cli/src/cli.test.ts": "f1c0939ac3f9c89ceef9534c6218fb750dc5cb97824b596123c0ca3a4a973d65",
+    "packages/cli/src/commands/mcp/add.ts": "fb4854727e2e70785f4497d372fdcfdf5ae6f24e41cfb3a69aaf3ac086c10fad",
+    "packages/cli/src/commands/mcp/add.test.ts": "a98b39a40a763329f6ed744eb213bbe91069c0fbefc37a0f6397efaca7a3d2e7"
+  },
+  "source_after": {
+    "packages/cli/src/cli.test.ts": "f1c0939ac3f9c89ceef9534c6218fb750dc5cb97824b596123c0ca3a4a973d65",
+    "packages/cli/src/commands/mcp/add.ts": "fb4854727e2e70785f4497d372fdcfdf5ae6f24e41cfb3a69aaf3ac086c10fad",
+    "packages/cli/src/commands/mcp/add.test.ts": "a98b39a40a763329f6ed744eb213bbe91069c0fbefc37a0f6397efaca7a3d2e7"
+  },
+  "source_unchanged": true,
+  "tracked_diff_unchanged": true,
+  "temporary_files_removed": true
+}

@@ -1,0 +1,1888 @@
+{
+  "unchanged-parent": {
+    "passed": 12,
+    "failed": 8,
+    "observations": [
+      {
+        "nested": false,
+        "name": "args-separated",
+        "tail": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n-   '--args',\n-   'value'\n  ]\n"
+      },
+      {
+        "nested": false,
+        "name": "args-equals",
+        "tail": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "actual": [
+          "run",
+          "image"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n-   '--args=value',\n-   'img'\n  ]\n"
+      },
+      {
+        "nested": false,
+        "name": "similar-name",
+        "tail": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "serverArgs-collision",
+        "tail": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "server-args-collision",
+        "tail": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "numeric-literals",
+        "tail": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "expected": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "actual": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "timeout-number",
+        "tail": [
+          "run",
+          "image",
+          "--timeout",
+          "1500"
+        ],
+        "expected": [
+          "run",
+          "image"
+        ],
+        "actual": [
+          "run",
+          "image"
+        ],
+        "timeout": 1500,
+        "timeoutType": "number",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "separator-data",
+        "tail": [
+          "run",
+          "image",
+          "--",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--args",
+          16,
+          "--timeout",
+          1500
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n    '--args',\n+   16,\n-   '0x10',\n    '--timeout',\n+   1500\n-   '1500'\n  ]\n"
+      },
+      {
+        "nested": false,
+        "name": "empty-args",
+        "tail": [],
+        "expected": [],
+        "actual": [],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "server-command-named-add",
+        "tail": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "expected": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "actual": [
+          "add"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'add',\n-   '--args',\n-   'next'\n  ]\n"
+      },
+      {
+        "nested": true,
+        "name": "args-separated",
+        "tail": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n-   '--args',\n-   'value'\n  ]\n"
+      },
+      {
+        "nested": true,
+        "name": "args-equals",
+        "tail": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "actual": [
+          "run",
+          "image"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n-   '--args=value',\n-   'img'\n  ]\n"
+      },
+      {
+        "nested": true,
+        "name": "similar-name",
+        "tail": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "serverArgs-collision",
+        "tail": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "server-args-collision",
+        "tail": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "numeric-literals",
+        "tail": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "expected": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "actual": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "timeout-number",
+        "tail": [
+          "run",
+          "image",
+          "--timeout",
+          "1500"
+        ],
+        "expected": [
+          "run",
+          "image"
+        ],
+        "actual": [
+          "run",
+          "image"
+        ],
+        "timeout": 1500,
+        "timeoutType": "number",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "separator-data",
+        "tail": [
+          "run",
+          "image",
+          "--",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--args",
+          16,
+          "--timeout",
+          1500
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n    '--args',\n+   16,\n-   '0x10',\n    '--timeout',\n+   1500\n-   '1500'\n  ]\n"
+      },
+      {
+        "nested": true,
+        "name": "empty-args",
+        "tail": [],
+        "expected": [],
+        "actual": [],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "server-command-named-add",
+        "tail": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "expected": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "actual": [
+          "add"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'add',\n-   '--args',\n-   'next'\n  ]\n"
+      }
+    ]
+  },
+  "reviewer-rename": {
+    "passed": 14,
+    "failed": 6,
+    "observations": [
+      {
+        "nested": false,
+        "name": "args-separated",
+        "tail": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "args-equals",
+        "tail": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "similar-name",
+        "tail": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "serverArgs-collision",
+        "tail": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n-   '--serverArgs',\n-   'value'\n  ]\n"
+      },
+      {
+        "nested": false,
+        "name": "server-args-collision",
+        "tail": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n-   '--server-args',\n-   'value'\n  ]\n"
+      },
+      {
+        "nested": false,
+        "name": "numeric-literals",
+        "tail": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "expected": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "actual": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "timeout-number",
+        "tail": [
+          "run",
+          "image",
+          "--timeout",
+          "1500"
+        ],
+        "expected": [
+          "run",
+          "image"
+        ],
+        "actual": [
+          "run",
+          "image"
+        ],
+        "timeout": 1500,
+        "timeoutType": "number",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "separator-data",
+        "tail": [
+          "run",
+          "image",
+          "--",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--args",
+          16,
+          "--timeout",
+          1500
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n    '--args',\n+   16,\n-   '0x10',\n    '--timeout',\n+   1500\n-   '1500'\n  ]\n"
+      },
+      {
+        "nested": false,
+        "name": "empty-args",
+        "tail": [],
+        "expected": [],
+        "actual": [],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "server-command-named-add",
+        "tail": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "expected": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "actual": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "args-separated",
+        "tail": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "args-equals",
+        "tail": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "similar-name",
+        "tail": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "serverArgs-collision",
+        "tail": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n-   '--serverArgs',\n-   'value'\n  ]\n"
+      },
+      {
+        "nested": true,
+        "name": "server-args-collision",
+        "tail": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n-   '--server-args',\n-   'value'\n  ]\n"
+      },
+      {
+        "nested": true,
+        "name": "numeric-literals",
+        "tail": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "expected": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "actual": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "timeout-number",
+        "tail": [
+          "run",
+          "image",
+          "--timeout",
+          "1500"
+        ],
+        "expected": [
+          "run",
+          "image"
+        ],
+        "actual": [
+          "run",
+          "image"
+        ],
+        "timeout": 1500,
+        "timeoutType": "number",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "separator-data",
+        "tail": [
+          "run",
+          "image",
+          "--",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--args",
+          16,
+          "--timeout",
+          1500
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n    '--args',\n+   16,\n-   '0x10',\n    '--timeout',\n+   1500\n-   '1500'\n  ]\n"
+      },
+      {
+        "nested": true,
+        "name": "empty-args",
+        "tail": [],
+        "expected": [],
+        "actual": [],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "server-command-named-add",
+        "tail": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "expected": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "actual": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      }
+    ]
+  },
+  "no-implicit-numbers": {
+    "passed": 12,
+    "failed": 8,
+    "observations": [
+      {
+        "nested": false,
+        "name": "args-separated",
+        "tail": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n-   '--args',\n    'value'\n  ]\n"
+      },
+      {
+        "nested": false,
+        "name": "args-equals",
+        "tail": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "value",
+          "img"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n+   'value',\n-   '--args=value',\n    'img'\n  ]\n"
+      },
+      {
+        "nested": false,
+        "name": "similar-name",
+        "tail": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "serverArgs-collision",
+        "tail": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "server-args-collision",
+        "tail": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "numeric-literals",
+        "tail": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "expected": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "actual": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "timeout-number",
+        "tail": [
+          "run",
+          "image",
+          "--timeout",
+          "1500"
+        ],
+        "expected": [
+          "run",
+          "image"
+        ],
+        "actual": [
+          "run",
+          "image"
+        ],
+        "timeout": 1500,
+        "timeoutType": "number",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "separator-data",
+        "tail": [
+          "run",
+          "image",
+          "--",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--args",
+          16,
+          "--timeout",
+          1500
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n    '--args',\n+   16,\n-   '0x10',\n    '--timeout',\n+   1500\n-   '1500'\n  ]\n"
+      },
+      {
+        "nested": false,
+        "name": "empty-args",
+        "tail": [],
+        "expected": [],
+        "actual": [],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "server-command-named-add",
+        "tail": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "expected": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "actual": [
+          "add",
+          "next"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'add',\n-   '--args',\n    'next'\n  ]\n"
+      },
+      {
+        "nested": true,
+        "name": "args-separated",
+        "tail": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n-   '--args',\n    'value'\n  ]\n"
+      },
+      {
+        "nested": true,
+        "name": "args-equals",
+        "tail": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "value",
+          "img"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n+   'value',\n-   '--args=value',\n    'img'\n  ]\n"
+      },
+      {
+        "nested": true,
+        "name": "similar-name",
+        "tail": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "serverArgs-collision",
+        "tail": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "server-args-collision",
+        "tail": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "numeric-literals",
+        "tail": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "expected": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "actual": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "timeout-number",
+        "tail": [
+          "run",
+          "image",
+          "--timeout",
+          "1500"
+        ],
+        "expected": [
+          "run",
+          "image"
+        ],
+        "actual": [
+          "run",
+          "image"
+        ],
+        "timeout": 1500,
+        "timeoutType": "number",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "separator-data",
+        "tail": [
+          "run",
+          "image",
+          "--",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--args",
+          16,
+          "--timeout",
+          1500
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'run',\n    'image',\n    '--args',\n+   16,\n-   '0x10',\n    '--timeout',\n+   1500\n-   '1500'\n  ]\n"
+      },
+      {
+        "nested": true,
+        "name": "empty-args",
+        "tail": [],
+        "expected": [],
+        "actual": [],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "server-command-named-add",
+        "tail": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "expected": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "actual": [
+          "add",
+          "next"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": false,
+        "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    'add',\n-   '--args',\n    'next'\n  ]\n"
+      }
+    ]
+  },
+  "raw-tail": {
+    "passed": 20,
+    "failed": 0,
+    "observations": [
+      {
+        "nested": false,
+        "name": "args-separated",
+        "tail": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "args-equals",
+        "tail": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "similar-name",
+        "tail": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "serverArgs-collision",
+        "tail": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "server-args-collision",
+        "tail": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "numeric-literals",
+        "tail": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "expected": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "actual": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "timeout-number",
+        "tail": [
+          "run",
+          "image",
+          "--timeout",
+          "1500"
+        ],
+        "expected": [
+          "run",
+          "image"
+        ],
+        "actual": [
+          "run",
+          "image"
+        ],
+        "timeout": 1500,
+        "timeoutType": "number",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "separator-data",
+        "tail": [
+          "run",
+          "image",
+          "--",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "empty-args",
+        "tail": [],
+        "expected": [],
+        "actual": [],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": false,
+        "name": "server-command-named-add",
+        "tail": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "expected": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "actual": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "args-separated",
+        "tail": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--args",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "args-equals",
+        "tail": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--args=value",
+          "img"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "similar-name",
+        "tail": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--argsNote",
+          "x"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "serverArgs-collision",
+        "tail": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--serverArgs",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "server-args-collision",
+        "tail": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--server-args",
+          "value"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "numeric-literals",
+        "tail": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "expected": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "actual": [
+          "0x10",
+          "1e3",
+          "007"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "timeout-number",
+        "tail": [
+          "run",
+          "image",
+          "--timeout",
+          "1500"
+        ],
+        "expected": [
+          "run",
+          "image"
+        ],
+        "actual": [
+          "run",
+          "image"
+        ],
+        "timeout": 1500,
+        "timeoutType": "number",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "separator-data",
+        "tail": [
+          "run",
+          "image",
+          "--",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "expected": [
+          "run",
+          "image",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "actual": [
+          "run",
+          "image",
+          "--args",
+          "0x10",
+          "--timeout",
+          "1500"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "empty-args",
+        "tail": [],
+        "expected": [],
+        "actual": [],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      },
+      {
+        "nested": true,
+        "name": "server-command-named-add",
+        "tail": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "expected": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "actual": [
+          "add",
+          "--args",
+          "next"
+        ],
+        "timeoutType": "undefined",
+        "handlerInvoked": true,
+        "pass": true
+      }
+    ]
+  }
+}

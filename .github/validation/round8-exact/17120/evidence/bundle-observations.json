@@ -1,0 +1,701 @@
+{
+  "source": "9c48bdcd106ee04f792dfa754866d00bb8fc19df",
+  "mode": "actual built CLI bundle",
+  "observations": [
+    {
+      "name": "args-separated",
+      "argv": [
+        "mcp",
+        "add",
+        "round8-server",
+        "docker",
+        "run",
+        "image",
+        "--args",
+        "value"
+      ],
+      "args": [
+        "run",
+        "image",
+        "--args",
+        "value"
+      ],
+      "timeout": null,
+      "exit": 0,
+      "exit_code": 0,
+      "stdout_actual": "MCP server \"round8-server\" added to user settings. (stdio)\n",
+      "stderr_actual": "MCP_PROBE_ISOLATION home_env_unchanged=true config_and_legacy_home_are_temporary=true\n",
+      "before": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "after": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {
+            "round8-server": {
+              "command": "docker",
+              "args": [
+                "run",
+                "image",
+                "--args",
+                "value"
+              ]
+            }
+          },
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "a8aab85d74c48f6064e513eaa111d67099987072cf6607938c1f150dfecefa34",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
+    },
+    {
+      "name": "args-equals",
+      "argv": [
+        "mcp",
+        "--debug",
+        "add",
+        "round8-server",
+        "docker",
+        "run",
+        "image",
+        "--args=value",
+        "img"
+      ],
+      "args": [
+        "run",
+        "image",
+        "--args=value",
+        "img"
+      ],
+      "timeout": null,
+      "exit": 0,
+      "exit_code": 0,
+      "stdout_actual": "MCP server \"round8-server\" added to user settings. (stdio)\n",
+      "stderr_actual": "MCP_PROBE_ISOLATION home_env_unchanged=true config_and_legacy_home_are_temporary=true\n",
+      "before": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "after": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {
+            "round8-server": {
+              "command": "docker",
+              "args": [
+                "run",
+                "image",
+                "--args=value",
+                "img"
+              ]
+            }
+          },
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "e07b814aca1b88b2314a3310a401fc5776d4966037d0e9ebdb1c81e42f412474",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
+    },
+    {
+      "name": "similar-name",
+      "argv": [
+        "mcp",
+        "add",
+        "round8-server",
+        "docker",
+        "run",
+        "image",
+        "--argsNote",
+        "x"
+      ],
+      "args": [
+        "run",
+        "image",
+        "--argsNote",
+        "x"
+      ],
+      "timeout": null,
+      "exit": 0,
+      "exit_code": 0,
+      "stdout_actual": "MCP server \"round8-server\" added to user settings. (stdio)\n",
+      "stderr_actual": "MCP_PROBE_ISOLATION home_env_unchanged=true config_and_legacy_home_are_temporary=true\n",
+      "before": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "after": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {
+            "round8-server": {
+              "command": "docker",
+              "args": [
+                "run",
+                "image",
+                "--argsNote",
+                "x"
+              ]
+            }
+          },
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "94b3018a544d817c62183f78701815cc0b5625e0a1769a3667b0410ba2b099d6",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
+    },
+    {
+      "name": "serverArgs-collision",
+      "argv": [
+        "mcp",
+        "--debug",
+        "add",
+        "round8-server",
+        "docker",
+        "run",
+        "image",
+        "--serverArgs",
+        "value"
+      ],
+      "args": [
+        "run",
+        "image",
+        "--serverArgs",
+        "value"
+      ],
+      "timeout": null,
+      "exit": 0,
+      "exit_code": 0,
+      "stdout_actual": "MCP server \"round8-server\" added to user settings. (stdio)\n",
+      "stderr_actual": "MCP_PROBE_ISOLATION home_env_unchanged=true config_and_legacy_home_are_temporary=true\n",
+      "before": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "after": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {
+            "round8-server": {
+              "command": "docker",
+              "args": [
+                "run",
+                "image",
+                "--serverArgs",
+                "value"
+              ]
+            }
+          },
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "59411e4e5fd423e2b2e1010ccf82825a93017deef86b316c5feb274ad2debafd",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
+    },
+    {
+      "name": "server-args-collision",
+      "argv": [
+        "mcp",
+        "add",
+        "round8-server",
+        "docker",
+        "run",
+        "image",
+        "--server-args",
+        "value"
+      ],
+      "args": [
+        "run",
+        "image",
+        "--server-args",
+        "value"
+      ],
+      "timeout": null,
+      "exit": 0,
+      "exit_code": 0,
+      "stdout_actual": "MCP server \"round8-server\" added to user settings. (stdio)\n",
+      "stderr_actual": "MCP_PROBE_ISOLATION home_env_unchanged=true config_and_legacy_home_are_temporary=true\n",
+      "before": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "after": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {
+            "round8-server": {
+              "command": "docker",
+              "args": [
+                "run",
+                "image",
+                "--server-args",
+                "value"
+              ]
+            }
+          },
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "43c062f776d24ac799e2508e43b8d6cab840be706e06b5c9f11372b2d6bce0f8",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
+    },
+    {
+      "name": "numeric-literals",
+      "argv": [
+        "mcp",
+        "--debug",
+        "add",
+        "round8-server",
+        "docker",
+        "0x10",
+        "1e3",
+        "007"
+      ],
+      "args": [
+        "0x10",
+        "1e3",
+        "007"
+      ],
+      "timeout": null,
+      "exit": 0,
+      "exit_code": 0,
+      "stdout_actual": "MCP server \"round8-server\" added to user settings. (stdio)\n",
+      "stderr_actual": "MCP_PROBE_ISOLATION home_env_unchanged=true config_and_legacy_home_are_temporary=true\n",
+      "before": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "after": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {
+            "round8-server": {
+              "command": "docker",
+              "args": [
+                "0x10",
+                "1e3",
+                "007"
+              ]
+            }
+          },
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "b391e78b1f4389b1b04a3f8fa5b52382f73d9f3980d593114ae73e4ccd7279a9",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
+    },
+    {
+      "name": "timeout-number",
+      "argv": [
+        "mcp",
+        "add",
+        "round8-server",
+        "docker",
+        "run",
+        "image",
+        "--timeout",
+        "1500"
+      ],
+      "args": [
+        "run",
+        "image"
+      ],
+      "timeout": 1500,
+      "exit": 0,
+      "exit_code": 0,
+      "stdout_actual": "MCP server \"round8-server\" added to user settings. (stdio)\n",
+      "stderr_actual": "MCP_PROBE_ISOLATION home_env_unchanged=true config_and_legacy_home_are_temporary=true\n",
+      "before": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "after": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {
+            "round8-server": {
+              "command": "docker",
+              "args": [
+                "run",
+                "image"
+              ],
+              "timeout": 1500
+            }
+          },
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "77a2fa48d8d1ba1173045e829c34a2dd675ab37d7f0794f316ae5b9f19e5415f",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
+    },
+    {
+      "name": "separator-data",
+      "argv": [
+        "mcp",
+        "--debug",
+        "add",
+        "round8-server",
+        "docker",
+        "run",
+        "image",
+        "--",
+        "--args",
+        "0x10",
+        "--timeout",
+        "1500"
+      ],
+      "args": [
+        "run",
+        "image",
+        "--args",
+        "0x10",
+        "--timeout",
+        "1500"
+      ],
+      "timeout": null,
+      "exit": 0,
+      "exit_code": 0,
+      "stdout_actual": "MCP server \"round8-server\" added to user settings. (stdio)\n",
+      "stderr_actual": "MCP_PROBE_ISOLATION home_env_unchanged=true config_and_legacy_home_are_temporary=true\n",
+      "before": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "after": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {
+            "round8-server": {
+              "command": "docker",
+              "args": [
+                "run",
+                "image",
+                "--args",
+                "0x10",
+                "--timeout",
+                "1500"
+              ]
+            }
+          },
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "94782d501f603d06229ef708963015e1eefc39e04a63a88382956df636d5bfa0",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
+    },
+    {
+      "name": "empty-args",
+      "argv": [
+        "mcp",
+        "add",
+        "round8-server",
+        "docker"
+      ],
+      "args": [],
+      "timeout": null,
+      "exit": 0,
+      "exit_code": 0,
+      "stdout_actual": "MCP server \"round8-server\" added to user settings. (stdio)\n",
+      "stderr_actual": "MCP_PROBE_ISOLATION home_env_unchanged=true config_and_legacy_home_are_temporary=true\n",
+      "before": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "after": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {
+            "round8-server": {
+              "command": "docker",
+              "args": []
+            }
+          },
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "e74477b5b77e35b673444f9fbf521e65c7c243dfce05e8991b8d7d7dbacaba89",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
+    },
+    {
+      "name": "unknown-prefix",
+      "argv": [
+        "mcp",
+        "--deubg",
+        "list"
+      ],
+      "exit": 1,
+      "stderr": "Unknown argument: deubg",
+      "stdout": "Usage: qwen mcp",
+      "exit_code": 1,
+      "stdout_actual": "Usage: qwen mcp <command>\n\nManage MCP servers\n\nCommands:\n  qwen mcp add <name> <commandOrUrl> [args...]  Add a server\n  qwen mcp remove <name>  Remove a server\n  qwen mcp list  List all configured MCP servers\n  qwen mcp reconnect [server-name]  Reconnect to MCP servers\n  qwen mcp approve [name]  Approve a pending MCP server\n  qwen mcp reject [name]  Reject a pending MCP server\n",
+      "stderr_actual": "MCP_PROBE_ISOLATION home_env_unchanged=true config_and_legacy_home_are_temporary=true\nUnknown argument: deubg\n",
+      "before": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "after": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
+    },
+    {
+      "name": "missing-command",
+      "argv": [
+        "mcp",
+        "add",
+        "round8-server"
+      ],
+      "exit": 1,
+      "stderr": "Not enough non-option arguments",
+      "exit_code": 1,
+      "stdout_actual": "Usage: qwen mcp add [options] <name> <commandOrUrl> [args...]\n\nPositionals:\n  name          Name of the server                           [string] [required]\n  commandOrUrl  Command (stdio) or URL (sse, http)           [string] [required]\n\nOptions:\n  -s, --scope                    Configuration scope (user or project)\n                         [string] [choices: \"user\", \"project\"] [default: \"user\"]\n  -t, --transport                Transport type (stdio, sse, http). Auto-detecte\n                                 d from URL if not specified.\n                                      [string] [choices: \"stdio\", \"sse\", \"http\"]\n  -e, --env                      Set environment variables (e.g. -e KEY=value)\n                                                                         [array]\n  -H, --header                   Set HTTP headers for SSE and HTTP transports (e\n                                 .g. -H \"X-Api-Key: abc123\" -H \"Authorization: B\n                                 earer abc123\")                          [array]\n      --timeout                  Set connection timeout in milliseconds [number]\n      --trust                    Trust the server (bypass its tool call confirma\n                                 tions in a trusted workspace)         [boolean]\n      --description              Set the description for the server     [string]\n      --include-tools            A comma-separated list of tools to include\n                                                                         [array]\n      --exclude-tools            A comma-separated list of tools to exclude\n                                                                         [array]\n      --oauth-client-id          OAuth client ID for MCP server authentication\n                                                                        [string]\n      --oauth-client-secret      OAuth client secret for MCP server authenticati\n                                 on                                     [string]\n      --oauth-redirect-uri       OAuth redirect URI (e.g., https://your-server.c\n                                 om/oauth/callback). Defaults to localhost for l\n                                 ocal setups.                           [string]\n      --oauth-authorization-url  OAuth authorization URL                [string]\n      --oauth-token-url          OAuth token URL                        [string]\n      --oauth-scopes             OAuth scopes (comma-separated)          [array]\n  -h, --help                     Show help                             [boolean]\n",
+      "stderr_actual": "MCP_PROBE_ISOLATION home_env_unchanged=true config_and_legacy_home_are_temporary=true\nNot enough non-option arguments: got 1, need at least 2\n",
+      "before": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "after": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
+    },
+    {
+      "name": "invalid-transport",
+      "argv": [
+        "mcp",
+        "add",
+        "round8-server",
+        "docker",
+        "--transport",
+        "invalid"
+      ],
+      "exit": 1,
+      "stderr": "Invalid values",
+      "exit_code": 1,
+      "stdout_actual": "Usage: qwen mcp add [options] <name> <commandOrUrl> [args...]\n\nPositionals:\n  name          Name of the server                           [string] [required]\n  commandOrUrl  Command (stdio) or URL (sse, http)           [string] [required]\n\nOptions:\n  -s, --scope                    Configuration scope (user or project)\n                         [string] [choices: \"user\", \"project\"] [default: \"user\"]\n  -t, --transport                Transport type (stdio, sse, http). Auto-detecte\n                                 d from URL if not specified.\n                                      [string] [choices: \"stdio\", \"sse\", \"http\"]\n  -e, --env                      Set environment variables (e.g. -e KEY=value)\n                                                                         [array]\n  -H, --header                   Set HTTP headers for SSE and HTTP transports (e\n                                 .g. -H \"X-Api-Key: abc123\" -H \"Authorization: B\n                                 earer abc123\")                          [array]\n      --timeout                  Set connection timeout in milliseconds [number]\n      --trust                    Trust the server (bypass its tool call confirma\n                                 tions in a trusted workspace)         [boolean]\n      --description              Set the description for the server     [string]\n      --include-tools            A comma-separated list of tools to include\n                                                                         [array]\n      --exclude-tools            A comma-separated list of tools to exclude\n                                                                         [array]\n      --oauth-client-id          OAuth client ID for MCP server authentication\n                                                                        [string]\n      --oauth-client-secret      OAuth client secret for MCP server authenticati\n                                 on                                     [string]\n      --oauth-redirect-uri       OAuth redirect URI (e.g., https://your-server.c\n                                 om/oauth/callback). Defaults to localhost for l\n                                 ocal setups.                           [string]\n      --oauth-authorization-url  OAuth authorization URL                [string]\n      --oauth-token-url          OAuth token URL                        [string]\n      --oauth-scopes             OAuth scopes (comma-separated)          [array]\n  -h, --help                     Show help                             [boolean]\n",
+      "stderr_actual": "MCP_PROBE_ISOLATION home_env_unchanged=true config_and_legacy_home_are_temporary=true\nInvalid values:\n  Argument: transport, Given: \"invalid\", Choices: \"stdio\", \"sse\", \"http\"\n",
+      "before": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "after": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
+    },
+    {
+      "name": "normal-list",
+      "argv": [
+        "mcp",
+        "list"
+      ],
+      "exit": 0,
+      "stdout": "No MCP servers configured.",
+      "exit_code": 0,
+      "stdout_actual": "No MCP servers configured.\n",
+      "stderr_actual": "MCP_PROBE_ISOLATION home_env_unchanged=true config_and_legacy_home_are_temporary=true\n",
+      "before": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "after": {
+        "settings": {
+          "$version": 4,
+          "mcpServers": {},
+          "security": {
+            "folderTrust": {
+              "enabled": false
+            }
+          }
+        },
+        "settings_sha256": "cbbc2389302d7eff36c7b5002b618bf049b00b9c60e7c3313495a1b488296d95",
+        "tokens_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
+    }
+  ],
+  "passed": 13,
+  "failed": 0,
+  "home_env_unchanged": true,
+  "tracked_diff_unchanged": true,
+  "boundary": "Real bundle entry, MCP parser, handler and settings writer. Temporary config/runtime and child homedir only; HOME is unchanged. Add stores a command but does not launch it."
+}

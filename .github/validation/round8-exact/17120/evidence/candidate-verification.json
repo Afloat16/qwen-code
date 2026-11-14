@@ -1,0 +1,99 @@
+{
+  "source": "9c48bdcd106ee04f792dfa754866d00bb8fc19df",
+  "results": {
+    "candidate-cli-and-add": {
+      "exit_code": 0,
+      "total": 201,
+      "passed": 201,
+      "failed": 0,
+      "filtered": 0,
+      "runtime_error_suites": 0,
+      "failures": [],
+      "by_file": [
+        {
+          "file": "/home/runner/work/qwen-code/qwen-code/source/packages/cli/src/cli.test.ts",
+          "passed": 155,
+          "failed": 0
+        },
+        {
+          "file": "/home/runner/work/qwen-code/qwen-code/source/packages/cli/src/commands/mcp/add.test.ts",
+          "passed": 46,
+          "failed": 0
+        }
+      ]
+    },
+    "parent-production-new-tests": {
+      "exit_code": 1,
+      "total": 201,
+      "passed": 5,
+      "failed": 3,
+      "filtered": 193,
+      "runtime_error_suites": 0,
+      "failures": [
+        {
+          "name": "mcp add command should handle MCP server args with -- separator",
+          "messages": [
+            "AssertionError: expected \"spy\" to be called with arguments: [ 'User', 'mcpServers', …(1) ]\u001b[90m\n\nReceived: \n\n\u001b[1m  1st spy call:\n\n\u001b[22m\u001b[33m@@ -4,13 +4,19 @@\u001b[90m\n\u001b[2m    {\u001b[22m\n\u001b[2m      \"my-server\": {\u001b[22m\n\u001b[2m        \"args\": [\u001b[22m\n\u001b[2m          \"-y\",\u001b[22m\n\u001b[2m          \"http://example.com/some-package\",\u001b[22m\n\u001b[32m-         \"0x10\",\u001b[90m\n\u001b[31m+         \"16\",\u001b[90m\n\u001b[2m          \"--args\",\u001b[22m\n\u001b[2m          \"value\",\u001b[22m\n\u001b[2m        ],\u001b[22m\n\u001b[2m        \"command\": \"npx\",\u001b[22m\n\u001b[31m+       \"description\": undefined,\u001b[90m\n\u001b[31m+       \"env\": undefined,\u001b[90m\n\u001b[31m+       \"excludeTools\": undefined,\u001b[90m\n\u001b[31m+       \"includeTools\": undefined,\u001b[90m\n\u001b[31m+       \"timeout\": undefined,\u001b[90m\n\u001b[31m+       \"trust\": undefined,\u001b[90m\n\u001b[2m      },\u001b[22m\n\u001b[2m    },\u001b[22m\n\u001b[2m  ]\u001b[22m\n\u001b[39m\u001b[90m\n\nNumber of calls: \u001b[1m1\u001b[22m\n\u001b[39m\n    at Proxy.<anonymous> (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/expect/dist/index.js:1355:10)\n    at Proxy.<anonymous> (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/expect/dist/index.js:1029:14)\n    at Proxy.methodWrapper (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/chai/chai.js:1618:25)\n    at /home/runner/work/qwen-code/qwen-code/source/packages/cli/src/commands/mcp/add.test.ts:172:26\n    at file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          ]
+        },
+        {
+          "name": "mcp add command should handle unknown options as MCP server args (\"run\")",
+          "messages": [
+            "AssertionError: expected \"spy\" to be called with arguments: [ 'User', 'mcpServers', { …(1) } ]\u001b[90m\n\nReceived: \n\n\u001b[1m  1st spy call:\n\n\u001b[22m\u001b[33m@@ -4,12 +4,16 @@\u001b[90m\n\u001b[2m    {\u001b[22m\n\u001b[2m      \"test-server\": {\u001b[22m\n\u001b[2m        \"args\": [\u001b[22m\n\u001b[2m          \"run\",\u001b[22m\n\u001b[2m          \"image\",\u001b[22m\n\u001b[32m-         \"--args\",\u001b[90m\n\u001b[32m-         \"value\",\u001b[90m\n\u001b[2m        ],\u001b[22m\n\u001b[2m        \"command\": \"npx\",\u001b[22m\n\u001b[31m+       \"description\": undefined,\u001b[90m\n\u001b[31m+       \"env\": undefined,\u001b[90m\n\u001b[31m+       \"excludeTools\": undefined,\u001b[90m\n\u001b[31m+       \"includeTools\": undefined,\u001b[90m\n\u001b[31m+       \"timeout\": undefined,\u001b[90m\n\u001b[31m+       \"trust\": undefined,\u001b[90m\n\u001b[2m      },\u001b[22m\n\u001b[2m    },\u001b[22m\n\u001b[2m  ]\u001b[22m\n\u001b[39m\u001b[90m\n\nNumber of calls: \u001b[1m1\u001b[22m\n\u001b[39m\n    at Proxy.<anonymous> (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/expect/dist/index.js:1355:10)\n    at Proxy.<anonymous> (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/expect/dist/index.js:1029:14)\n    at Proxy.methodWrapper (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/chai/chai.js:1618:25)\n    at /home/runner/work/qwen-code/qwen-code/source/packages/cli/src/commands/mcp/add.test.ts:197:28\n    at file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          ]
+        },
+        {
+          "name": "mcp add command should handle unknown options as MCP server args (\"run\")",
+          "messages": [
+            "AssertionError: expected \"spy\" to be called with arguments: [ 'User', 'mcpServers', { …(1) } ]\u001b[90m\n\nReceived: \n\n\u001b[1m  1st spy call:\n\n\u001b[22m\u001b[33m@@ -4,12 +4,16 @@\u001b[90m\n\u001b[2m    {\u001b[22m\n\u001b[2m      \"test-server\": {\u001b[22m\n\u001b[2m        \"args\": [\u001b[22m\n\u001b[2m          \"run\",\u001b[22m\n\u001b[2m          \"image\",\u001b[22m\n\u001b[32m-         \"--args=value\",\u001b[90m\n\u001b[32m-         \"img\",\u001b[90m\n\u001b[2m        ],\u001b[22m\n\u001b[2m        \"command\": \"npx\",\u001b[22m\n\u001b[31m+       \"description\": undefined,\u001b[90m\n\u001b[31m+       \"env\": undefined,\u001b[90m\n\u001b[31m+       \"excludeTools\": undefined,\u001b[90m\n\u001b[31m+       \"includeTools\": undefined,\u001b[90m\n\u001b[31m+       \"timeout\": undefined,\u001b[90m\n\u001b[31m+       \"trust\": undefined,\u001b[90m\n\u001b[2m      },\u001b[22m\n\u001b[2m    },\u001b[22m\n\u001b[2m  ]\u001b[22m\n\u001b[39m\u001b[90m\n\nNumber of calls: \u001b[1m1\u001b[22m\n\u001b[39m\n    at Proxy.<anonymous> (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/expect/dist/index.js:1355:10)\n    at Proxy.<anonymous> (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/expect/dist/index.js:1029:14)\n    at Proxy.methodWrapper (file:///home/runner/work/qwen-code/qwen-code/source/node_modules/chai/chai.js:1618:25)\n    at /home/runner/work/qwen-code/qwen-code/source/packages/cli/src/commands/mcp/add.test.ts:197:28\n    at file:///home/runner/work/qwen-code/qwen-code/source/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+          ]
+        }
+      ],
+      "by_file": [
+        {
+          "file": "/home/runner/work/qwen-code/qwen-code/source/packages/cli/src/cli.test.ts",
+          "passed": 0,
+          "failed": 0
+        },
+        {
+          "file": "/home/runner/work/qwen-code/qwen-code/source/packages/cli/src/commands/mcp/add.test.ts",
+          "passed": 5,
+          "failed": 3
+        }
+      ]
+    },
+    "restored-targeted": {
+      "exit_code": 0,
+      "total": 201,
+      "passed": 8,
+      "failed": 0,
+      "filtered": 193,
+      "runtime_error_suites": 0,
+      "failures": [],
+      "by_file": [
+        {
+          "file": "/home/runner/work/qwen-code/qwen-code/source/packages/cli/src/cli.test.ts",
+          "passed": 0,
+          "failed": 0
+        },
+        {
+          "file": "/home/runner/work/qwen-code/qwen-code/source/packages/cli/src/commands/mcp/add.test.ts",
+          "passed": 8,
+          "failed": 0
+        }
+      ]
+    }
+  },
+  "source_sha256_before": "fb4854727e2e70785f4497d372fdcfdf5ae6f24e41cfb3a69aaf3ac086c10fad",
+  "source_sha256_after": "fb4854727e2e70785f4497d372fdcfdf5ae6f24e41cfb3a69aaf3ac086c10fad",
+  "source_restored": true,
+  "test_hashes_before": {
+    "packages/cli/src/cli.test.ts": "f1c0939ac3f9c89ceef9534c6218fb750dc5cb97824b596123c0ca3a4a973d65",
+    "packages/cli/src/commands/mcp/add.test.ts": "a98b39a40a763329f6ed744eb213bbe91069c0fbefc37a0f6397efaca7a3d2e7"
+  },
+  "test_hashes_after": {
+    "packages/cli/src/cli.test.ts": "f1c0939ac3f9c89ceef9534c6218fb750dc5cb97824b596123c0ca3a4a973d65",
+    "packages/cli/src/commands/mcp/add.test.ts": "a98b39a40a763329f6ed744eb213bbe91069c0fbefc37a0f6397efaca7a3d2e7"
+  },
+  "tracked_diff_restored": true
+}
