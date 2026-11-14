@@ -1,0 +1,150 @@
+name: Qwen review follow-up validation
+
+on:
+  push:
+    branches:
+      - validation/qwen-review-followups-20261114
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    name: PR ${{ matrix.pr }} exact candidate
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pr: 17121
+            sha: 0b0d0b7813dda555be00146b35c34d9549531055
+            tree: 86fa6071957e5642997d856a09d32780d8078974
+            parent: bcf946572ab3841151dc1472abe4c04193b01a5e
+            format: docs/users/configuration/settings.md packages/cli/src/config/settingsUtils.test.ts
+            lint: packages/cli/src/config/settingsUtils.test.ts
+            tests: |
+              corepack pnpm exec vitest run src/config/settingsUtils.test.ts src/ui/components/SettingsDialog.test.tsx --coverage.enabled=false --maxWorkers=2 --no-file-parallelism
+          - pr: 17125
+            sha: a2dce2c6e5c4985352a5cd797bcc636d8b8b5bea
+            tree: e40f035e3c090fbc9633f2a34b9302f9e84056f6
+            parent: b67c2156b809a50667e70aac5e840f90b4ecc1a3
+            format: docs/users/reference/keyboard-shortcuts.md packages/cli/src/ui/AppContainer.tsx
+            lint: packages/cli/src/ui/AppContainer.tsx
+            tests: |
+              corepack pnpm exec vitest run src/ui/AppContainer.test.tsx -t 'uses the normal auth-dialog exit window|should block quit command during authentication' --coverage.enabled=false --maxWorkers=2 --no-file-parallelism
+              corepack pnpm exec vitest run src/ui/opentui/exit-guard.test.ts --coverage.enabled=false --maxWorkers=2 --no-file-parallelism
+          - pr: 17126
+            sha: ab73dbfe797d745d43ae7aa2d73192fc28931398
+            tree: 52bc9742e5499192ddae9c922a0446cc7105e9ea
+            parent: 47c1e708c23c9e548e1413067edf73c471310815
+            format: packages/cli/src/ui/contexts/BackgroundTaskViewContext.tsx packages/cli/src/ui/contexts/BackgroundTaskViewContext.test.tsx packages/cli/src/ui/components/background-view/BackgroundTasksDialog.tsx packages/cli/src/ui/components/background-view/BackgroundTasksDialog.test.tsx
+            lint: packages/cli/src/ui/contexts/BackgroundTaskViewContext.tsx packages/cli/src/ui/contexts/BackgroundTaskViewContext.test.tsx packages/cli/src/ui/components/background-view/BackgroundTasksDialog.tsx packages/cli/src/ui/components/background-view/BackgroundTasksDialog.test.tsx
+            tests: |
+              corepack pnpm exec vitest run src/ui/contexts/BackgroundTaskViewContext.test.tsx src/ui/hooks/useBackgroundTaskView.test.ts src/ui/components/background-view/BackgroundTasksDialog.test.tsx --coverage.enabled=false --maxWorkers=2 --no-file-parallelism
+          - pr: 17119
+            sha: d32af9de8141329ea1fb1080216f891f6cb83df5
+            tree: 7e93450eb2487e8ba29d56c5c1c2578c222d7bcd
+            parent: f51380831a300504699d551c50f725a406c17ad0
+            format: docs/users/qwen-serve.md docs/developers/qwen-serve-protocol.md docs/developers/daemon/12-auth-security.md docs/developers/daemon/02-serve-runtime.md docs/developers/daemon/17-configuration.md docs/developers/daemon/20-quickstart-operations.md packages/cli/src/serve/server.test.ts
+            lint: packages/cli/src/serve/server.test.ts
+            tests: |
+              corepack pnpm exec vitest run src/serve/web-shell-preauth.test.ts --coverage.enabled=false --maxWorkers=2 --no-file-parallelism
+              corepack pnpm exec vitest run src/serve/server.test.ts -t 'serves page document' --coverage.enabled=false --maxWorkers=2 --no-file-parallelism
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      CI: 'true'
+      NODE_OPTIONS: --max-old-space-size=6144
+      SOURCE_SHA: ${{ matrix.sha }}
+      SOURCE_TREE: ${{ matrix.tree }}
+      SOURCE_PARENT: ${{ matrix.parent }}
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: ${{ matrix.sha }}
+          path: source
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify source identity
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$SOURCE_TREE"
+          test "$(git rev-parse HEAD^)" = "$SOURCE_PARENT"
+          git diff --check HEAD^ HEAD
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install frozen dependencies
+        env:
+          QWEN_SKIP_PREPARE: '1'
+        run: |
+          corepack enable
+          node --version
+          corepack pnpm --version
+          corepack pnpm install --frozen-lockfile --reporter=append-only
+      - name: Check changed-file formatting
+        run: corepack pnpm exec prettier --check ${{ matrix.format }}
+      - name: Build all workspaces
+        run: npm run build
+      - name: Check all workspace and integration types
+        run: npm run typecheck
+      - name: Build production bundle
+        run: npm run bundle
+      - name: Lint changed source and tests
+        run: corepack pnpm exec eslint ${{ matrix.lint }} --max-warnings 0
+      - name: Run package-local regression suites
+        working-directory: source/packages/cli
+        run: ${{ matrix.tests }}
+      - name: Check source remained unchanged
+        run: |
+          git diff --exit-code
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+  java:
+    name: PR 17117 exact candidate on Java 11
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      SOURCE_SHA: feb9070b8676469bfc40203ed7ef5576733d7bfc
+      MAVEN_OPTS: -Xmx2048m
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: feb9070b8676469bfc40203ed7ef5576733d7bfc
+          path: source
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify source identity
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = ea424a8045389d971313aee41aefc9cdd5b1a9a6
+          test "$(git rev-parse HEAD^)" = 3ffeb9a8e1c665d568e104644fce6816567fcc46
+          git diff --check HEAD^ HEAD
+      - name: Set up Java 11
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with:
+          distribution: temurin
+          java-version: '11'
+          cache: maven
+          cache-dependency-path: source/packages/sdk-java/qwencode/pom.xml
+      - name: Build SDK and run full hosted-client suite and Checkstyle
+        working-directory: source/packages/sdk-java/qwencode
+        run: mvn --batch-mode --no-transfer-progress -Dtest=HostedHarnessClientTest test checkstyle:check
+      - name: Check source remained unchanged
+        run: |
+          git diff --exit-code
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
