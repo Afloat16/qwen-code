@@ -197,7 +197,7 @@ describe('MemoryMessage refresh with the resource hook', () => {
   });
 
   it.each(['resolve', 'reject'] as const)(
-    'reports a retryable refresh that %ss after a same-path workspace event',
+    'keeps a superseded refresh that %ss after a same-path workspace event out of the error transcript',
     async (completion) => {
       await renderPanel();
       const oldRefresh = deferred<DaemonWorkspaceMemoryStatus>();
@@ -231,17 +231,69 @@ describe('MemoryMessage refresh with the resource hook', () => {
       expect(harness.outcomes).toEqual([{ data: undefined, superseded: true }]);
       expect(contentReads()).toBe(readsBefore);
       expect(container.textContent).toContain(
-        'Could not refresh memory. Please try again.',
+        'Memory changed while refreshing. Try again.',
       );
       expect(container.textContent).not.toContain('obsolete');
       expect(container.textContent).not.toContain('Memory refreshed.');
-      expect(harness.onMessage).toHaveBeenCalledWith(
-        'Could not refresh memory. Please try again.',
-        'error',
-      );
+      expect(harness.onMessage).not.toHaveBeenCalled();
       expect(harness.writeMemory).not.toHaveBeenCalled();
     },
   );
+
+  it('preserves a newer save confirmation when an earlier refresh is superseded', async () => {
+    await renderPanel();
+    act(() => {
+      Array.from(container.querySelectorAll('button'))
+        .find((item) => item.textContent === 'Edit')!
+        .click();
+    });
+    await flush();
+    const oldRefresh = deferred<DaemonWorkspaceMemoryStatus>();
+    harness.loadMemoryStatus.mockImplementationOnce(() => oldRefresh.promise);
+    await refresh();
+
+    harness.writeMemory.mockResolvedValue({
+      ok: true,
+      filePath: workspaceFile.path,
+      bytesWritten: 16,
+      mode: 'replace',
+      changed: true,
+    });
+    act(() => {
+      const save = Array.from(container.querySelectorAll('button')).find(
+        (item) => item.textContent === 'Save Memory',
+      );
+      expect(save?.disabled).toBe(false);
+      save!.click();
+    });
+    await flush();
+    const savedMessage = 'Workspace saved: 16 bytes -> /workspace/QWEN.md';
+    expect(container.textContent).toContain(savedMessage);
+
+    await act(async () => {
+      oldRefresh.resolve(
+        statusWith([{ ...workspaceFile, content: 'obsolete status\n' }]),
+      );
+    });
+    await flush();
+
+    expect(harness.outcomes).toEqual([{ data: undefined, superseded: true }]);
+    expect(container.textContent).toContain(savedMessage);
+    expect(container.textContent).not.toContain('Could not refresh memory');
+    expect(container.textContent).not.toContain(
+      'Memory changed while refreshing',
+    );
+    expect(container.textContent).not.toContain('obsolete');
+    expect(harness.onMessage).toHaveBeenCalledExactlyOnceWith(
+      savedMessage,
+      'status',
+    );
+    expect(harness.writeMemory).toHaveBeenCalledExactlyOnceWith({
+      scope: 'workspace',
+      mode: 'replace',
+      content: workspaceFile.content,
+    });
+  });
 
   it.each([false, true])(
     'confirms one completed content read when the file already existed: %s',

@@ -199,10 +199,12 @@ export function MemoryMessage({
         ) {
           return;
         }
-        if (superseded || !nextStatus) {
-          const text = superseded
-            ? t('memory.refreshFailed')
-            : (refreshError?.message ?? t('memory.refreshFailed'));
+        if (superseded) {
+          setMessage((current) => current ?? t('memory.refreshSuperseded'));
+          return;
+        }
+        if (!nextStatus) {
+          const text = refreshError?.message ?? t('memory.refreshFailed');
           setMessage(text);
           onMessage?.(text, 'error');
           return;
