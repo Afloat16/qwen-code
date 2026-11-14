@@ -1,0 +1,79 @@
+name: MCP review blocker validation
+
+on:
+  push:
+    branches:
+      - validation/qwen-mcp-blockers-20261114
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      CI: 'true'
+      NODE_OPTIONS: --max-old-space-size=6144
+      SOURCE_SHA: 555cd21b7ec6f3d082e5a5a018bc14a7acc74f36
+      SOURCE_TREE: 4d9e584959fe77f6cbee5a690d597817de4cd7f8
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: 555cd21b7ec6f3d082e5a5a018bc14a7acc74f36
+          path: source
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify source
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$SOURCE_TREE"
+          test "$(git rev-parse HEAD^)" = 9c48bdcd106ee04f792dfa754866d00bb8fc19df
+          git diff --check HEAD^ HEAD
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install frozen dependencies
+        env:
+          QWEN_SKIP_PREPARE: '1'
+        run: |
+          corepack enable
+          corepack pnpm install --frozen-lockfile --reporter=append-only
+      - name: Formatting
+        run: corepack pnpm exec prettier --check packages/cli/src/commands/mcp/add.ts packages/cli/src/commands/mcp/add.test.ts packages/cli/src/commands/mcp.test.ts
+      - name: Build
+        run: npm run build
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Bundle
+        run: npm run bundle
+      - name: Lint
+        run: corepack pnpm exec eslint packages/cli/src/commands/mcp/add.ts packages/cli/src/commands/mcp/add.test.ts packages/cli/src/commands/mcp.test.ts --max-warnings 0
+      - name: Candidate regression suites
+        working-directory: source/packages/cli
+        run: corepack pnpm exec vitest run src/commands/mcp.test.ts src/commands/mcp/add.test.ts src/cli.test.ts --coverage.enabled=false --maxWorkers=2 --no-file-parallelism
+      - name: Baseline must reproduce both blockers
+        run: |
+          trap 'git restore packages/cli/src/commands/mcp/add.ts packages/cli/src/commands/mcp.test.ts' EXIT
+          git show HEAD^:packages/cli/src/commands/mcp/add.ts > packages/cli/src/commands/mcp/add.ts
+          git show HEAD^:packages/cli/src/commands/mcp.test.ts > packages/cli/src/commands/mcp.test.ts
+          cd packages/cli
+          set +e
+          corepack pnpm exec vitest run src/commands/mcp.test.ts src/commands/mcp/add.test.ts --coverage.enabled=false --maxWorkers=2 --no-file-parallelism --reporter=json --outputFile="$RUNNER_TEMP/mcp-parent.json"
+          result=$?
+          set -e
+          test "$result" = 1
+          node --input-type=module -e 'import fs from "node:fs"; import assert from "node:assert/strict"; const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/mcp-parent.json","utf8")); console.log(JSON.stringify({failed:r.numFailedTests,passed:r.numPassedTests})); assert.equal(r.numFailedTests,8);'
+          cd ../..
+      - name: Check source remained unchanged
+        run: |
+          git diff --exit-code
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
