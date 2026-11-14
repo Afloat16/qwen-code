@@ -1,0 +1,68 @@
+name: Qwen 17120 review follow-up validation
+
+on:
+  push:
+    branches:
+      - validation/qwen17120-followup-20261114
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Exact candidate build, types, bundle and MCP regressions
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      CI: 'true'
+      NODE_OPTIONS: --max-old-space-size=6144
+      SOURCE_SHA: 0e4d29283401f46b8198a73269273b06a5a24052
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: 0e4d29283401f46b8198a73269273b06a5a24052
+          path: source
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify source identity
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = 4cc12290b9ab115497b3544a72ebe65e7b5b5abf
+          test "$(git rev-parse HEAD^)" = 40978fcaae8aed6cbc67bc4c11e46b099a4450bd
+          git diff --check HEAD^ HEAD
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install frozen dependencies
+        env:
+          QWEN_SKIP_PREPARE: '1'
+        run: |
+          corepack enable
+          node --version
+          corepack pnpm --version
+          corepack pnpm install --frozen-lockfile --reporter=append-only
+      - name: Check formatting
+        run: corepack pnpm exec prettier --check packages/cli/src/commands/mcp/add.ts packages/cli/src/commands/mcp/add.test.ts
+      - name: Build all workspaces
+        run: npm run build
+      - name: Check all workspace and integration types
+        run: npm run typecheck
+      - name: Build production bundle
+        run: npm run bundle
+      - name: Lint changed source and tests
+        run: corepack pnpm exec eslint packages/cli/src/commands/mcp/add.ts packages/cli/src/commands/mcp/add.test.ts --max-warnings 0
+      - name: Run CLI dispatch and MCP add suites
+        working-directory: source/packages/cli
+        run: corepack pnpm exec vitest run src/cli.test.ts src/commands/mcp/add.test.ts --coverage.enabled=false
+      - name: Check source remained unchanged
+        run: |
+          git diff --exit-code
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
