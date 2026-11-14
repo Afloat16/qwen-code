@@ -7,7 +7,7 @@ This branch records local validation separately from the production PR branches.
 The unchanged production command and builder were extracted through TypeScript AST. `mcp-probe-esm.mjs` uses the real ESM yargs entrypoint, matching production cli.ts, with frozen workspace dependencies (Node 24.22.1, TypeScript 5.8.3, yargs 17.7.2). Only an observer handler is substituted; this fixture does not execute the settings writer, whole CLI, or a model.
 
 - Baseline `40978fcaae8aed6cbc67bc4c11e46b099a4450bd`: six controls pass; three assertion failures reproduce literal `--args`, `--args=value`, and numeric spelling after `--` being lost.
-- Candidate `ddfab5ea762c2e70ce46754d8898cce25c3020d5`: the identical nine cases all pass.
+- Final candidate `9c48bdcd106ee04f792dfa754866d00bb8fc19df`: the identical nine cases all pass. The production blob is unchanged from `ddfab5ea`; only two owner test assertions were corrected to capture both synchronous throws and asynchronous rejections. The independent fixture and all nine expectations are unchanged.
 - Both phases preserve production hashes and tracked diffs.
 
 An earlier CJS fixture passed with isolated exact-version dependencies, but the workspace's pre-existing ansi-regex override breaks the CJS help formatter. Production uses ESM. Both exact commits were rerun with the ESM fixture, which is the authoritative result above. No dependency lock changes were made.

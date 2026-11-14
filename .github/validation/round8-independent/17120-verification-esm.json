@@ -1,6 +1,6 @@
 {
   "phase": "verification",
-  "source": "ddfab5ea762c2e70ce46754d8898cce25c3020d5",
+  "source": "9c48bdcd106ee04f792dfa754866d00bb8fc19df",
   "boundary": "Unchanged production command and builder extracted with TypeScript AST; real locked yargs parser and middleware, observer handler only. Does not execute production settings writer, whole CLI, or model.",
   "method": "test-script",
   "bootstrap": "ESM yargs entrypoint, matching production cli.ts import",
