@@ -218,6 +218,7 @@ export const addCommand: CommandModule = {
       .parserConfiguration({
         'unknown-options-as-args': true, // Pass unknown options as server args
         'populate--': true, // Populate server args after -- separator
+        'parse-numbers': false, // Preserve server argv, including numeric spellings
       })
       .positional('name', {
         describe: 'Name of the server',
@@ -229,7 +230,6 @@ export const addCommand: CommandModule = {
         type: 'string',
         demandOption: true,
       })
-      .positional('args', { type: 'string', array: true })
       .option('scope', {
         alias: 's',
         describe: 'Configuration scope (user or project)',

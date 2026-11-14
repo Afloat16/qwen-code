@@ -96,6 +96,36 @@ describe('mcp add command', () => {
     });
   });
 
+  it.each([
+    { tail: ['--args', 'value'], expected: ['value'] },
+    { tail: ['--args=value', 'img'], expected: ['value', 'img'] },
+    {
+      tail: ['--serverArgs', 'value'],
+      expected: ['--serverArgs', 'value'],
+    },
+    { tail: ['--argsNote', 'value'], expected: ['--argsNote', 'value'] },
+    { tail: ['0x10', '1e3', '007'], expected: ['0x10', '1e3', '007'] },
+  ])('preserves server values in $tail', async ({ tail, expected }) => {
+    await parser.parseAsync([
+      'add',
+      'my-server',
+      'docker',
+      'run',
+      'image',
+      ...tail,
+      '--timeout',
+      '1500',
+    ]);
+
+    expect(mockSetValue).toHaveBeenCalledWith(SettingScope.User, 'mcpServers', {
+      'my-server': expect.objectContaining({
+        command: 'docker',
+        args: ['run', 'image', ...expected],
+        timeout: 1500,
+      }),
+    });
+  });
+
   it('should auto-detect http transport when commandOrUrl is an https URL', async () => {
     await parser.parseAsync('add http-server https://example.com/mcp');
 
