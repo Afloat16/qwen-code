@@ -1,0 +1,98 @@
+name: Qwen priority review follow-up validation
+run-name: Validate memory and folder-trust review fixes
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - validation/qwen-priority-followup-20261114
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: PR ${{ matrix.pr }} exact candidate
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pr: 17108
+            sha: 76d6dfb8adcdb09170caa3970fe33f67bf199dda
+            tree: 246b7099cd7ad6772da361e7e002ba86fbe279c2
+            parent: caa528f0d4dcccf5521971d902257c3ecdeed8cd
+            directory: packages/web-shell
+            tests: client/components/messages/MemoryMessage.refresh.test.tsx client/daemon/workspace/hooks/useDaemonMemory.test.tsx client/daemon/workspace/hooks/useDaemonResource.test.tsx
+            files: docs/users/features/memory.md packages/web-shell/client/components/messages/MemoryMessage.refresh.test.tsx packages/web-shell/client/components/messages/MemoryMessage.tsx packages/web-shell/client/i18n.tsx
+            lint: packages/web-shell/client/components/messages/MemoryMessage.refresh.test.tsx packages/web-shell/client/components/messages/MemoryMessage.tsx packages/web-shell/client/i18n.tsx
+          - pr: 17109
+            sha: 494dd938735bed640d98367ed160e66e58419705
+            tree: 0d704b25e248b5703546128b941d75872fa845fe
+            parent: ba5f9e8dbbbf25299a6db5873011b02599ef41cc
+            directory: packages/web-shell
+            tests: client/components/messages/MemoryMessage.test.tsx client/daemon/workspace/hooks/useDaemonMemory.test.tsx
+            files: packages/web-shell/client/components/messages/MemoryMessage.test.tsx packages/web-shell/client/components/messages/MemoryMessage.tsx
+            lint: packages/web-shell/client/components/messages/MemoryMessage.test.tsx packages/web-shell/client/components/messages/MemoryMessage.tsx
+          - pr: 17123
+            sha: 93ea1ef97813be1a7f74fb5151fa2adb2e37836c
+            tree: 00fe45234b3ca0d9a7f43a1d705b5d15d63d8093
+            parent: b86af9512bb437b63fc014ff2e8aa74b7f42c9b4
+            directory: packages/cli
+            tests: src/serve/fast-path.test.ts src/config/daemon-trust-policy.test.ts src/config/migration/migration.test.ts src/config/settings.test.ts
+            files: docs/users/configuration/settings.md packages/cli/src/config/daemon-trust-policy.test.ts packages/cli/src/serve/fast-path-settings.ts packages/cli/src/serve/fast-path.test.ts
+            lint: packages/cli/src/config/daemon-trust-policy.test.ts packages/cli/src/serve/fast-path-settings.ts packages/cli/src/serve/fast-path.test.ts
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      CI: 'true'
+      NODE_OPTIONS: --max-old-space-size=6144
+      SOURCE_SHA: ${{ matrix.sha }}
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: ${{ matrix.sha }}
+          path: source
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify source identity
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = "${{ matrix.tree }}"
+          test "$(git rev-parse HEAD^)" = "${{ matrix.parent }}"
+          git diff --check HEAD^ HEAD
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install frozen dependencies
+        env:
+          QWEN_SKIP_PREPARE: '1'
+        run: |
+          corepack enable
+          node --version
+          corepack pnpm --version
+          corepack pnpm install --frozen-lockfile --reporter=append-only
+      - name: Check formatting
+        run: corepack pnpm exec prettier --check ${{ matrix.files }}
+      - name: Build all workspaces
+        run: npm run build
+      - name: Check all workspace and integration types
+        run: npm run typecheck
+      - name: Build production bundle
+        run: npm run bundle
+      - name: Lint changed source and tests
+        run: corepack pnpm exec eslint ${{ matrix.lint }} --max-warnings 0
+      - name: Run the focused native suites
+        working-directory: source/${{ matrix.directory }}
+        run: corepack pnpm exec vitest run ${{ matrix.tests }} --coverage.enabled=false
+      - name: Check source remained unchanged
+        run: |
+          git diff --exit-code
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
