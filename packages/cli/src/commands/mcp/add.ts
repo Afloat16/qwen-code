@@ -221,6 +221,7 @@ export const addCommand: CommandModule = {
         'parse-positional-numbers': false,
       })
       .strict(false)
+      .strictOptions()
       .strictCommands(false)
       .positional('name', {
         describe: 'Name of the server',
