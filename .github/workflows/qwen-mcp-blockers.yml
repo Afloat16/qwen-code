@@ -20,14 +20,14 @@ jobs:
     env:
       CI: 'true'
       NODE_OPTIONS: --max-old-space-size=6144
-      SOURCE_SHA: eac13b93b95bc4eff6a7f44e8c15518f7b9b3d0b
-      SOURCE_TREE: 48f4088434f229b37f965c440bda843680d68a26
+      SOURCE_SHA: 0011890a48a2e9d1775453d096a4e5c8a1982076
+      SOURCE_TREE: b3c7bd4e666d3096f9dee359198ca84e5a8bc511
     steps:
       - name: Check out candidate
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: Afloat16/qwen-code
-          ref: eac13b93b95bc4eff6a7f44e8c15518f7b9b3d0b
+          ref: 0011890a48a2e9d1775453d096a4e5c8a1982076
           path: source
           persist-credentials: false
           fetch-depth: 2
