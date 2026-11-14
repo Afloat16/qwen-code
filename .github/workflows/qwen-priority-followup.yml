@@ -41,7 +41,7 @@ jobs:
             tree: 00fe45234b3ca0d9a7f43a1d705b5d15d63d8093
             parent: b86af9512bb437b63fc014ff2e8aa74b7f42c9b4
             directory: packages/cli
-            tests: src/serve/fast-path.test.ts src/config/daemon-trust-policy.test.ts src/config/migration/migration.test.ts src/config/settings.test.ts
+            tests: src/serve/fast-path.test.ts src/config/daemon-trust-policy.test.ts src/config/migration/versions/v1-to-v2.test.ts src/config/settings.test.ts
             files: docs/users/configuration/settings.md packages/cli/src/config/daemon-trust-policy.test.ts packages/cli/src/serve/fast-path-settings.ts packages/cli/src/serve/fast-path.test.ts
             lint: packages/cli/src/config/daemon-trust-policy.test.ts packages/cli/src/serve/fast-path-settings.ts packages/cli/src/serve/fast-path.test.ts
     defaults:
