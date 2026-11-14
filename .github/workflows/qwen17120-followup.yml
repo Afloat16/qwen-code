@@ -1,4 +1,5 @@
 name: Qwen 17120 review follow-up validation
+run-name: Validate MCP argument candidate 0e4d292
 
 on:
   push:
