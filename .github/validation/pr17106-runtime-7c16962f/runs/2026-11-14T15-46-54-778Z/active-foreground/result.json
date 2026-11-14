@@ -1,0 +1,17 @@
+{
+  "scenario": "active-foreground",
+  "status": "PASS",
+  "head": "7c16962f5ed04d61eff25accadc105e18be6cb34",
+  "evidenceDirectory": "runs/2026-11-14T15-46-54-778Z/active-foreground",
+  "parentPid": 7,
+  "childPid": 15,
+  "activeLoadsReturned": 2,
+  "activeTranscriptRequests": 0,
+  "activeDuringReturn": true,
+  "idleTranscriptRequests": 1,
+  "idlePersistedContentReturned": true,
+  "finalProtocolCounts": {
+    "prompts": 1,
+    "transcriptRequests": 1
+  }
+}

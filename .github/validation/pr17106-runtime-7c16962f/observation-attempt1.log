@@ -1,0 +1,18 @@
+qwen serve: session reaper started (interval 60000ms, idle threshold 1800000ms)
+{"scenario":"active-foreground","status":"PASS","head":"7c16962f5ed04d61eff25accadc105e18be6cb34","evidenceDirectory":"runs/2026-11-14T15-46-22-278Z/active-foreground","parentPid":5,"childPid":13,"activeLoadsReturned":2,"activeTranscriptRequests":0,"activeDuringReturn":true,"idleTranscriptRequests":1,"idlePersistedContentReturned":true,"finalProtocolCounts":{"prompts":1,"transcriptRequests":1}}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+ProcessExitError: ACP child pid=13 exited uncleanly during shutdown (code=none, signal=SIGTERM)
+    at TrackedChild.throwForUncleanExit (file:///workspace/scratch/c0a3e0958d43/qwen-17106/.qwen/pr-ui-verify/17106/bridge-runtime.mjs:258481:13)
+    at TrackedChild.terminatePosixTree (file:///workspace/scratch/c0a3e0958d43/qwen-17106/.qwen/pr-ui-verify/17106/bridge-runtime.mjs:258283:14)
+    at async TrackedChild.terminateTree (file:///workspace/scratch/c0a3e0958d43/qwen-17106/.qwen/pr-ui-verify/17106/bridge-runtime.mjs:258250:5)
+    at async withTimeout (file:///workspace/scratch/c0a3e0958d43/qwen-17106/.qwen/pr-ui-verify/17106/bridge-runtime.mjs:252680:12)
+    at async terminateChannel (file:///workspace/scratch/c0a3e0958d43/qwen-17106/.qwen/pr-ui-verify/17106/bridge-runtime.mjs:252700:5)
+    at async Promise.allSettled (index 0)
+    at async file:///workspace/scratch/c0a3e0958d43/qwen-17106/.qwen/pr-ui-verify/17106/bridge-runtime.mjs:276181:33
+    at async scenario (file:///workspace/scratch/c0a3e0958d43/qwen-17106/.qwen/pr-ui-verify/17106/run-observation.mjs:69:5)
+    at async file:///workspace/scratch/c0a3e0958d43/qwen-17106/.qwen/pr-ui-verify/17106/run-observation.mjs:103:5
+
+Node.js v24.22.1

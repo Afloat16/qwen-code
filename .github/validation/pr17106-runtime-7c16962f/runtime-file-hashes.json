@@ -1,0 +1,6 @@
+{
+  "build-runtime.mjs": "527e0cfc1fa95ed78776c23cd0527b766cdf9915ad8519a05a453fa2df06cd3e",
+  "acp-peer.mjs": "a6a1ec81a49bf8b245a94f7037676bb40574f5f7578fc185b483e06987db8c99",
+  "run-observation.mjs": "97923b7874232eb54c65f73c17be74956ff5fb54cee9eed626aa9e3d29975c41",
+  "bridge-runtime.mjs": "4b4a13c5632fa9e631ea424382956e0b0697937283d874ea6d171328486b68ce"
+}

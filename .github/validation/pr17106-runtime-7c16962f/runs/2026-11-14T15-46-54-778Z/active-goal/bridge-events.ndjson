@@ -1,0 +1,2 @@
+{"id":1,"v":1,"type":"session_update","data":{"sessionId":"6edb569c-ab69-4cda-b421-f5c6e951eb99","update":{"content":{"text":"LIVE:goal","type":"text"},"sessionUpdate":"agent_message_chunk"}},"_meta":{"serverTimestamp":1794671215627}}
+{"id":2,"v":1,"type":"turn_complete","promptId":"6edb569c-ab69-4cda-b421-f5c6e951eb99########runtime-goal","data":{"sessionId":"6edb569c-ab69-4cda-b421-f5c6e951eb99","stopReason":"end_turn","promptId":"6edb569c-ab69-4cda-b421-f5c6e951eb99########runtime-goal"},"_meta":{"serverTimestamp":1794671215632}}

@@ -1,0 +1,21 @@
+{
+  "scenario": "goal-terminal-valid",
+  "status": "PASS",
+  "head": "7c16962f5ed04d61eff25accadc105e18be6cb34",
+  "evidenceDirectory": "runs/2026-11-14T15-46-54-778Z/goal-terminal-valid",
+  "parentPid": 7,
+  "childPid": 60,
+  "reasonLength": 8,
+  "activeTranscriptRequests": 0,
+  "queuedMessageAccepted": true,
+  "promptCallsBeforeTerminal": 0,
+  "promotedPromptCalls": 1,
+  "remainingMidTurnMessages": 0,
+  "goalCompletionEvents": 1,
+  "idleTranscriptRequests": 1,
+  "idlePersistedContentReturned": true,
+  "finalProtocolCounts": {
+    "prompts": 1,
+    "transcriptRequests": 1
+  }
+}

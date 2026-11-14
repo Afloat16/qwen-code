@@ -1,0 +1,16 @@
+{
+  "scenario": "inflight-foreground-empty-page",
+  "status": "PASS",
+  "head": "7c16962f5ed04d61eff25accadc105e18be6cb34",
+  "evidenceDirectory": "runs/2026-11-14T15-46-54-778Z/inflight-foreground-empty-page",
+  "parentPid": 7,
+  "childPid": 51,
+  "heldIdlePageRequests": 1,
+  "emptyPageHadCursor": true,
+  "cursorFollowupRequests": 0,
+  "liveResponseReturned": true,
+  "finalProtocolCounts": {
+    "prompts": 1,
+    "transcriptRequests": 1
+  }
+}
