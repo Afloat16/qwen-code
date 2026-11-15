@@ -1,0 +1,122 @@
+name: Qwen reviewed fixes exact validation
+on:
+  push:
+    branches:
+      - validation/qwen-review-gates-20261115
+permissions:
+  contents: read
+jobs:
+  mcp:
+    name: PR 17120 exact candidate full validation
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      CI: 'true'
+      PNPM_CONFIG_WORKSPACE_CONCURRENCY: '1'
+      CANDIDATE_SHA: a391853684a5c4db9f8829c53da0083086621a9b
+    steps:
+      - name: Check out validation scripts
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          path: verification
+          sparse-checkout: .github/validation/review-gates-20261115
+          persist-credentials: false
+      - name: Check out exact MCP candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: a391853684a5c4db9f8829c53da0083086621a9b
+          path: source
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify source identity
+        run: |
+          mkdir -p "$RUNNER_TEMP/qwen17120-followup-validation"
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = 7f8343910c88fe1af98c82e8d7bd6135929aeb1d
+          test "$(git rev-parse HEAD^)" = 0011890a48a2e9d1775453d096a4e5c8a1982076
+          git diff --check HEAD^ HEAD
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+      - name: Install locked dependencies
+        env:
+          QWEN_SKIP_PREPARE: '1'
+        run: |
+          corepack enable
+          node --version
+          corepack pnpm --version
+          corepack pnpm install --frozen-lockfile --reporter=append-only
+      - name: Lint and format changed source
+        run: |
+          corepack pnpm exec eslint packages/cli/src/commands/mcp/add.ts packages/cli/src/commands/mcp/add.test.ts --max-warnings 0
+          corepack pnpm exec prettier --check packages/cli/src/commands/mcp/add.ts packages/cli/src/commands/mcp/add.test.ts
+      - name: Build all workspaces
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/qwen17120-followup-validation/build.log"
+      - name: Check workspace and integration types
+        run: npm run typecheck 2>&1 | tee "$RUNNER_TEMP/qwen17120-followup-validation/typecheck.log"
+      - name: Run all three MCP and entry-point suites
+        working-directory: source/packages/cli
+        run: corepack pnpm exec vitest run src/cli.test.ts src/commands/mcp.test.ts src/commands/mcp/add.test.ts --coverage.enabled=false --maxWorkers=2 --no-file-parallelism 2>&1 | tee "$RUNNER_TEMP/qwen17120-followup-validation/tests.log"
+      - name: Verify parent-source negative control
+        run: python3 ../verification/.github/validation/review-gates-20261115/negative.py
+      - name: Build production CLI bundle
+        run: npm run bundle 2>&1 | tee "$RUNNER_TEMP/qwen17120-followup-validation/bundle-build.log"
+      - name: Verify actual CLI errors and settings preservation
+        run: python3 ../verification/.github/validation/review-gates-20261115/bundle.py
+      - name: Verify source remains unchanged
+        run: git diff --exit-code
+      - name: Preserve validation reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen17120-followup-${{ env.CANDIDATE_SHA }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qwen17120-followup-validation/
+          if-no-files-found: error
+          retention-days: 14
+  java:
+    name: PR 17117 exact head Java 11 and README
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      SOURCE_SHA: 2566efb1be92670a34fcbec8434e83948ce11b3d
+      MAVEN_OPTS: -Xmx2048m
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: 2566efb1be92670a34fcbec8434e83948ce11b3d
+          path: source
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify README-only follow-up
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git diff --name-only HEAD^ HEAD)" = packages/sdk-java/qwencode/README.md
+          git diff --check HEAD^ HEAD
+      - name: Set up Java 11
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with:
+          distribution: temurin
+          java-version: '11'
+          cache: maven
+          cache-dependency-path: source/packages/sdk-java/qwencode/pom.xml
+      - name: Build SDK and run hosted-client suite and Checkstyle
+        working-directory: source/packages/sdk-java/qwencode
+        run: mvn --batch-mode --no-transfer-progress -Dtest=HostedHarnessClientTest test checkstyle:check
+      - name: Check README formatting
+        run: npx --yes prettier@3.5.3 --check packages/sdk-java/qwencode/README.md
+      - name: Check unchanged source
+        run: git diff --exit-code
