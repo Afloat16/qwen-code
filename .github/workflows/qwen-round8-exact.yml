@@ -1,5 +1,8 @@
 name: Qwen reviewed fixes exact validation
 on:
+  pull_request:
+    branches:
+      - validation/qwen-review-gates-base-20261115
   push:
     branches:
       - validation/qwen-review-gates-20261115
