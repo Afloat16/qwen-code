@@ -1,0 +1,87 @@
+name: Redirected command permission validation
+on:
+  push:
+    branches: [validation/redirect-rules-20261116]
+permissions:
+  contents: read
+jobs:
+  validate:
+    name: Build, typecheck and focused tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CI: 'true'
+      NODE_OPTIONS: --max-old-space-size=6144
+      npm_config_workspace_concurrency: '1'
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify candidate source
+        run: |
+          test "$(git rev-parse HEAD^)" = "b4468d0987865f3318aec3e6ff0e261c010a8406"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/redirect-rules-validation.yml"
+          git rev-parse HEAD^
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: Install frozen dependencies
+        env:
+          QWEN_SKIP_PREPARE: '1'
+        run: |
+          corepack enable
+          corepack pnpm --version
+          corepack pnpm install --frozen-lockfile --reporter=append-only
+      - name: Build workspaces
+        run: npm run build
+      - name: Typecheck core
+        run: npm run typecheck --workspace=packages/core
+      - name: Lint changed source and tests
+        run: |
+          corepack pnpm exec eslint \
+            packages/core/src/tools/shell.ts \
+            packages/core/src/permissions/command-rule-suggestions.ts \
+            packages/core/src/permissions/command-rule-suggestions.test.ts \
+            packages/core/src/permissions/redirected-command-rules.test.ts \
+            packages/core/src/permissions/rule-parser.ts \
+            packages/core/src/tools/cron-create.gate.test.ts \
+            packages/core/src/tools/cron-create.ts \
+            packages/core/src/tools/monitor.test.ts \
+            packages/core/src/tools/monitor.ts \
+            packages/core/src/tools/shell.test.ts \
+            packages/core/src/utils/shell-utils.test.ts \
+            packages/core/src/utils/shell-utils.ts
+      - name: Check formatting
+        run: |
+          corepack pnpm exec prettier --check \
+            packages/core/src/tools/shell.ts \
+            docs/users/configuration/settings.md \
+            packages/core/src/permissions/command-rule-suggestions.ts \
+            packages/core/src/permissions/command-rule-suggestions.test.ts \
+            packages/core/src/permissions/redirected-command-rules.test.ts \
+            packages/core/src/permissions/rule-parser.ts \
+            packages/core/src/tools/cron-create.gate.test.ts \
+            packages/core/src/tools/cron-create.ts \
+            packages/core/src/tools/monitor.test.ts \
+            packages/core/src/tools/monitor.ts \
+            packages/core/src/tools/shell.test.ts \
+            packages/core/src/utils/shell-utils.test.ts \
+            packages/core/src/utils/shell-utils.ts
+      - name: Run complete focused suites
+        working-directory: packages/core
+        run: |
+          npm exec -- vitest run \
+            src/utils/shellAstParser.test.ts \
+            src/permissions/command-rule-suggestions.test.ts \
+            src/permissions/redirected-command-rules.test.ts \
+            src/permissions/rule-parser.test.ts \
+            src/permissions/permission-manager.test.ts \
+            src/core/permissionFlow.test.ts \
+            src/core/permission-helpers.test.ts \
+            src/tools/shell.test.ts \
+            src/tools/monitor.test.ts \
+            src/tools/cron-create.gate.test.ts \
+            src/utils/shell-utils.test.ts \
+            --maxWorkers=1 --no-file-parallelism
