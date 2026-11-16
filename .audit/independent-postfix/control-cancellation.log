@@ -1,0 +1,9 @@
+{"head": "e96d8980f129433b09c16dd76ed21e8a4dce5542", "sdk_module": "/workspace/scratch/4bed741d4966/worktrees/qwen-control-cleanup/packages/sdk-python/src/qwen_code_sdk/__init__.py", "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]"}
+/workspace/scratch/4bed741d4966/.venv-qwen/lib/python3.12/site-packages/pytest_asyncio/plugin.py:306: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to "function" scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session". Set it to "fixture-scope" to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+{"case": "task-cancellation", "cancelled_tasks": 16, "retained_requests": 0, "active_timeout_handles": 0, "cancelled_futures_retained": 0, "query_closed": false, "independent_call_succeeded": true}
+.{"case": "write-failure", "retained_immediately_after_error": 0, "active_timeout_handles_after_error": 0, "remaining_after_timeout": 0, "event_loop_warnings": [], "query_closed": false, "independent_call_succeeded": true}
+.
+2 passed in 1.27s
