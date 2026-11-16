@@ -1,0 +1,332 @@
+name: PR 17367 focused candidate validation
+
+on:
+  push:
+    branches: [validation/qwen17367-upstream-20261116]
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    if: github.repository == 'Afloat16/qwen-code'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI: 'true'
+      NODE_OPTIONS: --max-old-space-size=6144
+      PNPM_CONFIG_WORKSPACE_CONCURRENCY: '1'
+      CANDIDATE_SHA: f3589a782bdd46216e221e5e4419a4d14e979488
+      CANDIDATE_TREE: 6d321fb401b92b15fb868ac6d38606a36cc0e789
+      EXPECTED_CLI_TESTS: '65'
+      MYSQL_CONTAINER: qwen17367-mysql
+      MYSQL_PASSWORD: hosted-fixture
+      MAVEN_OPTS: -Xmx2048m
+    steps:
+      - name: Check out validation-only scripts
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          path: verification
+          sparse-checkout: .github/validation/qwen17367
+          persist-credentials: false
+      - name: Check out the exact production candidate
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: Afloat16/qwen-code
+          ref: ${{ env.CANDIDATE_SHA }}
+          path: source
+          fetch-depth: 4
+          persist-credentials: false
+      - name: Verify source identity and initialize evidence
+        working-directory: source
+        run: |
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$CANDIDATE_TREE"
+          git merge-base --is-ancestor 6eb41fc429f231850eb775ec3c1a9d6be31fdfbc HEAD
+          git merge-base --is-ancestor 34ed63fe7319455408baf1c6c19ee54d50b1d34a HEAD
+          git diff --check 34ed63fe7319455408baf1c6c19ee54d50b1d34a HEAD
+          mkdir -p "$RUNNER_TEMP/qwen17367-reports" "$RUNNER_TEMP/qwen17367-m2"
+          echo "REPORT_DIR=$RUNNER_TEMP/qwen17367-reports" >> "$GITHUB_ENV"
+          git show --no-patch --format=fuller HEAD | tee "$RUNNER_TEMP/qwen17367-reports/source.log"
+          git rev-parse 'HEAD^{tree}' >> "$RUNNER_TEMP/qwen17367-reports/source.log"
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.x
+          package-manager-cache: false
+      - name: Install frozen dependencies once
+        working-directory: source
+        env:
+          QWEN_SKIP_PREPARE: '1'
+        run: |
+          corepack enable
+          node --version
+          corepack pnpm --version
+          corepack pnpm install --frozen-lockfile --reporter=append-only 2>&1 | tee "$REPORT_DIR/install.log"
+      - name: Build candidate workspaces and production CLI
+        id: workspace
+        working-directory: source
+        run: |
+          npm run build 2>&1 | tee "$REPORT_DIR/build.log"
+          npm run bundle 2>&1 | tee "$REPORT_DIR/bundle.log"
+          test -d packages/core/dist
+          test -d packages/cli/dist
+          test -s dist/cli.js
+      - name: Check workspace and integration types
+        if: ${{ !cancelled() && steps.workspace.outcome == 'success' }}
+        working-directory: source
+        run: npm run typecheck 2>&1 | tee "$REPORT_DIR/typecheck.log"
+      - name: Run complete custom-command suites
+        id: cli_tests
+        if: ${{ !cancelled() && steps.workspace.outcome == 'success' }}
+        working-directory: source/packages/cli
+        run: |
+          corepack pnpm exec vitest run \
+            src/services/prompt-processors/shellProcessor.test.ts \
+            src/serve/hosted-extension-command.test.ts \
+            src/services/command-factory.test.ts \
+            --coverage.enabled=false --maxWorkers=2 --no-file-parallelism \
+            --reporter=default --reporter=junit --outputFile.junit="$REPORT_DIR/cli.xml" \
+            2>&1 | tee "$REPORT_DIR/cli.log"
+      - name: Check the added TypeScript tests
+        if: ${{ !cancelled() && steps.workspace.outcome == 'success' }}
+        working-directory: source
+        run: |
+          corepack pnpm exec prettier --check packages/cli/src/serve/hosted-extension-command.test.ts packages/cli/src/services/prompt-processors/shellProcessor.test.ts
+          corepack pnpm exec eslint packages/cli/src/serve/hosted-extension-command.test.ts packages/cli/src/services/prompt-processors/shellProcessor.test.ts --max-warnings 0
+      - name: Verify literal-path and safe-argument negative controls
+        if: ${{ !cancelled() && steps.cli_tests.outcome == 'success' }}
+        run: |
+          python3 verification/.github/validation/qwen17367/verify-mutations.py \
+            --repo "$GITHUB_WORKSPACE/source" --output "$REPORT_DIR/mutations"
+      - name: Set up JDK 21
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with:
+          distribution: temurin
+          java-version: '21'
+          settings-path: ${{ runner.temp }}/setup-java-m2
+      - name: Isolate Maven coordinates and check toolchain
+        run: |
+          echo "MAVEN_ARGS=--settings $RUNNER_TEMP/setup-java-m2/settings.xml --toolchains $RUNNER_TEMP/setup-java-m2/toolchains.xml -Dmaven.repo.local=$RUNNER_TEMP/qwen17367-m2" >> "$GITHUB_ENV"
+          java -version 2>&1 | tee "$REPORT_DIR/java-version.log"
+          mvn --version | tee "$REPORT_DIR/maven-version.log"
+          python3 - <<'PY'
+          import os, pathlib, re
+          text = pathlib.Path(os.environ["REPORT_DIR"], "maven-version.log").read_text()
+          version = re.search(r"Apache Maven (\d+)\.(\d+)\.(\d+)", text)
+          assert version and tuple(map(int, version.groups())) >= (3, 8, 9), text
+          PY
+      - name: Install the exact SDK and production modules once
+        id: java_build
+        if: ${{ !cancelled() && steps.workspace.outcome == 'success' }}
+        working-directory: source/packages/managed-agent-server
+        run: |
+          mvn --batch-mode --no-transfer-progress -f ../sdk-java/qwencode/pom.xml \
+            -DskipTests -Dgpg.skip=true -Dmaven.javadoc.skip=true install \
+            2>&1 | tee "$REPORT_DIR/sdk-install.log"
+          mvn --batch-mode --no-transfer-progress -pl '!verification' \
+            -DskipTests -Dgpg.skip=true -Dmaven.javadoc.skip=true install \
+            2>&1 | tee "$REPORT_DIR/production-install.log"
+      - name: Start and preflight disposable MySQL 8.4
+        id: mysql
+        if: ${{ !cancelled() && steps.java_build.outcome == 'success' }}
+        run: |
+          docker run --detach --name "$MYSQL_CONTAINER" \
+            --publish 127.0.0.1::3306 \
+            --mount type=tmpfs,destination=/var/lib/mysql \
+            --env MYSQL_ROOT_PASSWORD="$MYSQL_PASSWORD" \
+            --env MYSQL_DATABASE=hosted_harness_test \
+            mysql:8.4.6 --innodb-use-native-aio=0 --skip-log-bin
+          for attempt in {1..60}; do
+            if docker exec "$MYSQL_CONTAINER" mysqladmin ping --host=127.0.0.1 --user=root --password="$MYSQL_PASSWORD" --silent; then
+              break
+            fi
+            if [ "$attempt" = 60 ]; then docker logs "$MYSQL_CONTAINER"; exit 1; fi
+            sleep 2
+          done
+          port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "3306/tcp") 0).HostPort}}' "$MYSQL_CONTAINER")"
+          echo "MYSQL_PORT=$port" >> "$GITHUB_ENV"
+          docker exec "$MYSQL_CONTAINER" sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --user=root --batch --skip-column-names --execute="SET GLOBAL max_allowed_packet=134217728; CREATE DATABASE managed_agent_test; SELECT VERSION(), @@GLOBAL.max_allowed_packet, @@GLOBAL.innodb_use_native_aio, @@GLOBAL.log_bin;"' | tee "$REPORT_DIR/mysql-version.log"
+          python3 - <<'PY'
+          import os, pathlib
+          row = pathlib.Path(os.environ["REPORT_DIR"], "mysql-version.log").read_text().strip().split("\t")
+          assert row[0].startswith("8.4."), row
+          assert int(row[1]) >= 134217728, row
+          assert row[2:] == ["0", "0"], row
+          PY
+      - name: Delegate the Hosted process cgroup
+        if: ${{ !cancelled() && steps.mysql.outcome == 'success' }}
+        run: |
+          sudo mkdir -p /sys/fs/cgroup/qwen17367
+          sudo chown -R "$(id -u):$(id -g)" /sys/fs/cgroup/qwen17367
+          test -f /sys/fs/cgroup/qwen17367/cgroup.kill
+          echo $$ | sudo tee /sys/fs/cgroup/qwen17367/cgroup.procs
+          mkdir /sys/fs/cgroup/qwen17367/smoke
+          sleep 30 </dev/null >/dev/null 2>&1 & smoke=$!
+          echo "$smoke" > /sys/fs/cgroup/qwen17367/smoke/cgroup.procs
+          test "$(cat /sys/fs/cgroup/qwen17367/smoke/cgroup.procs)" = "$smoke"
+          echo 1 > /sys/fs/cgroup/qwen17367/smoke/cgroup.kill
+          wait "$smoke" || true
+          rmdir /sys/fs/cgroup/qwen17367/smoke
+      - name: Verify FG11f drop-ack with its original Hosted profile
+        id: fg11f
+        if: ${{ !cancelled() && steps.mysql.outcome == 'success' }}
+        timeout-minutes: 15
+        working-directory: source/packages/managed-agent-server
+        env:
+          QWEN_MANAGED_HOOK_CGROUP_ROOT: /sys/fs/cgroup/qwen17367
+        run: |
+          echo $$ | sudo tee /sys/fs/cgroup/qwen17367/cgroup.procs
+          mvn --batch-mode --no-transfer-progress -f verification/pom.xml \
+            -Phosted-harness-mysql \
+            '-Dit.test=HostedAutomationFaultGatesIT#fg11fPublicationFaultsSettleOnceOnMySql' \
+            -Dqwen.fg11f.case=drop-ack-after-write \
+            -Dnode.executable="$(command -v node)" \
+            -Dqwen.cli.entry="$GITHUB_WORKSPACE/source/dist/cli.js" \
+            -Dmysql.url="jdbc:mysql://127.0.0.1:$MYSQL_PORT/hosted_harness_test?allowPublicKeyRetrieval=true&useSSL=false" \
+            -Dmysql.user=root -Dmysql.password="$MYSQL_PASSWORD" \
+            test-compile failsafe:integration-test failsafe:verify \
+            2>&1 | tee "$REPORT_DIR/fg11f.log"
+          mkdir -p "$REPORT_DIR/fg11f"
+          cp verification/target/failsafe-reports/TEST-*HostedAutomationFaultGatesIT.xml "$REPORT_DIR/fg11f/"
+      - name: Verify the original Broker lock-admission failure
+        id: broker
+        if: ${{ !cancelled() && steps.mysql.outcome == 'success' }}
+        timeout-minutes: 10
+        working-directory: source/packages/managed-agent-server
+        run: |
+          mvn --batch-mode --no-transfer-progress -f verification/pom.xml \
+            -Pmysql-integration \
+            '-Dit.test=WorkspaceSessionCloseMySqlIT#closeCommitsBeforeQueuedTurnAndActionAdmissionsCanInspectTheSession+failedActionReplayUsesTheLockedSessionStatusAfterAnOlderSnapshot' \
+            -Dmysql.integration.forks=1 \
+            -Dqwen.cli.entry="$GITHUB_WORKSPACE/source/dist/cli.js" \
+            -Dmysql.url="jdbc:mysql://127.0.0.1:$MYSQL_PORT/managed_agent_test?allowPublicKeyRetrieval=true&useSSL=false" \
+            -Dmysql.user=root -Dmysql.password="$MYSQL_PASSWORD" \
+            test-compile failsafe:integration-test failsafe:verify \
+            2>&1 | tee "$REPORT_DIR/broker.log"
+          mkdir -p "$REPORT_DIR/broker"
+          cp verification/target/failsafe-reports/TEST-*WorkspaceSessionCloseMySqlIT.xml "$REPORT_DIR/broker/"
+      - name: Reproduce Unicode local and o2 with the original fixture
+        id: unicode_before
+        if: ${{ !cancelled() && steps.mysql.outcome == 'success' }}
+        continue-on-error: true
+        timeout-minutes: 10
+        working-directory: source/packages/managed-agent-server
+        env:
+          QWEN_MANAGED_HOOK_CGROUP_ROOT: /sys/fs/cgroup/qwen17367
+        run: |
+          echo $$ | sudo tee /sys/fs/cgroup/qwen17367/cgroup.procs
+          fixture_rel=packages/managed-agent-server/verification/src/test/java/com/alibaba/qwen/code/managedagent/HostedWorkspaceToolTurnIT.java
+          trap 'git -C "$GITHUB_WORKSPACE/source" restore --source=HEAD -- "$fixture_rel"' EXIT
+          cp "$GITHUB_WORKSPACE/verification/.github/validation/qwen17367/HostedWorkspaceToolTurnIT.base.java" "$GITHUB_WORKSPACE/source/$fixture_rel"
+          git -C "$GITHUB_WORKSPACE/source" diff -- "$fixture_rel" > "$REPORT_DIR/unicode-before-fixture.diff"
+          sha256sum "$GITHUB_WORKSPACE/source/$fixture_rel" > "$REPORT_DIR/unicode-before-fixture.sha256"
+          rc=0
+          mvn --batch-mode --no-transfer-progress -f verification/pom.xml \
+            -Phosted-harness-mysql \
+            '-Dit.test=HostedWorkspaceToolTurnIT#malformedShellUnicodeIsCorrectableBeforeAcquisition' \
+            -Dnode.executable="$(command -v node)" \
+            -Dqwen.cli.entry="$GITHUB_WORKSPACE/source/dist/cli.js" \
+            -Dmysql.url="jdbc:mysql://127.0.0.1:$MYSQL_PORT/hosted_harness_test?allowPublicKeyRetrieval=true&useSSL=false" \
+            -Dmysql.user=root -Dmysql.password="$MYSQL_PASSWORD" \
+            test-compile failsafe:integration-test failsafe:verify \
+            2>&1 | tee "$REPORT_DIR/unicode-before.log" || rc=$?
+          mkdir -p "$REPORT_DIR/unicode-before"
+          cp verification/target/failsafe-reports/TEST-*HostedWorkspaceToolTurnIT.xml "$REPORT_DIR/unicode-before/"
+          exit "$rc"
+      - name: Verify Unicode local and o2 on the exact candidate fixture
+        id: unicode_after
+        if: ${{ !cancelled() && steps.mysql.outcome == 'success' }}
+        timeout-minutes: 10
+        working-directory: source/packages/managed-agent-server
+        env:
+          QWEN_MANAGED_HOOK_CGROUP_ROOT: /sys/fs/cgroup/qwen17367
+        run: |
+          fixture_rel=packages/managed-agent-server/verification/src/test/java/com/alibaba/qwen/code/managedagent/HostedWorkspaceToolTurnIT.java
+          git -C "$GITHUB_WORKSPACE/source" diff --exit-code -- "$fixture_rel"
+          sha256sum "$GITHUB_WORKSPACE/source/$fixture_rel" > "$REPORT_DIR/unicode-after-fixture.sha256"
+          echo $$ | sudo tee /sys/fs/cgroup/qwen17367/cgroup.procs
+          mvn --batch-mode --no-transfer-progress -f verification/pom.xml \
+            -Phosted-harness-mysql \
+            '-Dit.test=HostedWorkspaceToolTurnIT#malformedShellUnicodeIsCorrectableBeforeAcquisition' \
+            -Dnode.executable="$(command -v node)" \
+            -Dqwen.cli.entry="$GITHUB_WORKSPACE/source/dist/cli.js" \
+            -Dmysql.url="jdbc:mysql://127.0.0.1:$MYSQL_PORT/hosted_harness_test?allowPublicKeyRetrieval=true&useSSL=false" \
+            -Dmysql.user=root -Dmysql.password="$MYSQL_PASSWORD" \
+            test-compile failsafe:integration-test failsafe:verify \
+            2>&1 | tee "$REPORT_DIR/unicode-after.log"
+          mkdir -p "$REPORT_DIR/unicode-after"
+          cp verification/target/failsafe-reports/TEST-*HostedWorkspaceToolTurnIT.xml "$REPORT_DIR/unicode-after/"
+      - name: Require exact focused test reports
+        if: ${{ !cancelled() && steps.mysql.outcome == 'success' }}
+        working-directory: source
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, xml.etree.ElementTree as ET
+          root = pathlib.Path(os.environ["REPORT_DIR"])
+          def cases(phase, suffix):
+              matches = list((root / phase).glob("TEST-*" + suffix + ".xml"))
+              assert len(matches) == 1, (phase, matches)
+              suite = ET.parse(matches[0]).getroot()
+              result = suite.findall("testcase")
+              assert result and not any(c.findall("skipped") for c in result), (phase, "missing/skipped")
+              return result
+          def passed(case):
+              return not case.findall("failure") + case.findall("error") + case.findall("skipped")
+          expected = {
+              ("fg11f", "HostedAutomationFaultGatesIT"): {"fg11fPublicationFaultsSettleOnceOnMySql"},
+              ("broker", "WorkspaceSessionCloseMySqlIT"): {
+                  "closeCommitsBeforeQueuedTurnAndActionAdmissionsCanInspectTheSession",
+                  "failedActionReplayUsesTheLockedSessionStatusAfterAnOlderSnapshot",
+              },
+          }
+          for (phase, suffix), names in expected.items():
+              selected = cases(phase, suffix)
+              assert {c.get("name") for c in selected} == names, (phase, [c.attrib for c in selected])
+              assert len(selected) == len(names) and all(passed(c) for c in selected), phase
+              print(phase, len(selected), "passed / 0 failed / 0 skipped")
+          before = cases("unicode-before", "HostedWorkspaceToolTurnIT")
+          after = cases("unicode-after", "HostedWorkspaceToolTurnIT")
+          assert len(before) == len(after) == 2, (len(before), len(after))
+          assert all("malformedShellUnicodeIsCorrectableBeforeAcquisition" in c.get("name", "") for c in before + after)
+          local = [c for c in before if c.get("name", "").endswith("[1]")]
+          o2 = [c for c in before if c.get("name", "").endswith("[2]")]
+          assert len(local) == len(o2) == 1, [c.attrib for c in before]
+          assert passed(local[0]), local[0].attrib
+          assert len(o2[0].findall("failure")) == 1 and not o2[0].findall("error"), o2[0].attrib
+          assert all(passed(c) for c in after), [c.attrib for c in after]
+          print("Unicode before: local pass / o2 failure; exact candidate after: 2 passed / 0 skipped")
+          cli = ET.parse(root / "cli.xml").getroot()
+          cli_cases = cli.findall(".//testcase")
+          assert len(cli_cases) == int(os.environ["EXPECTED_CLI_TESTS"]), len(cli_cases)
+          assert all(passed(c) for c in cli_cases)
+          print("Custom-command tests:", len(cli_cases), "passed / 0 skipped")
+          PY
+      - name: Verify candidate source remains unchanged
+        if: always()
+        working-directory: source
+        run: git diff --exit-code
+      - name: Check the Java fixture style
+        if: ${{ !cancelled() && steps.java_build.outcome == 'success' }}
+        working-directory: source/packages/managed-agent-server
+        run: mvn --batch-mode --no-transfer-progress -f verification/pom.xml checkstyle:check 2>&1 | tee "$REPORT_DIR/java-checkstyle.log"
+      - name: Preserve raw logs and targeted reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qwen17367-focused-${{ env.CANDIDATE_SHA }}-attempt-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qwen17367-reports/
+            source/packages/managed-agent-server/verification/target/failsafe-reports/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Stop task-owned MySQL
+        if: always()
+        run: |
+          if docker container inspect "$MYSQL_CONTAINER" >/dev/null 2>&1; then
+            docker rm -f "$MYSQL_CONTAINER"
+          fi
+
