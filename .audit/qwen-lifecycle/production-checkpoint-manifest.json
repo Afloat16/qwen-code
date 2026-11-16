@@ -1,0 +1,41 @@
+{
+  "updated_at": "2026-11-16T20:12:14.823994+00:00",
+  "repository": "QwenLM/qwen-code",
+  "base": "488a6874acfeaa66cc2cf0f92d8b25f6d9e99373",
+  "status": "two production branches and independently reviewed Python fixes; repository build blocked; third independent initialization-cancellation repro",
+  "files": [
+    "audit/qwen-python-history-index.json",
+    "audit/qwen-python-lifecycle-method-audit.json",
+    "audit/qwen-initial-inventory.json",
+    "audit/qwen-lifecycle-created-issues.json",
+    "audit/qwen-python-baseline.log",
+    "audit/qwen-start-close-fallback.log",
+    "audit/qwen-control-cancellation-fallback.log",
+    "repos/qwen-code/.qwen/issues/issue-python-start-close.md",
+    "repos/qwen-code/.qwen/issues/issue-python-control-cancellation.md",
+    "repos/qwen-code/packages/sdk-python/tests/integration/test_start_close_reproduction.py",
+    "repos/qwen-code/packages/sdk-python/tests/unit/test_control_cancellation_reproduction.py",
+    "audit/qwen-lifecycle-triage-feedback.json",
+    "audit/qwen-control-cleanup-production.json",
+    "audit/qwen-close-start-production.json",
+    "audit/qwen-self-audits.json",
+    "audit/qwen-control-cleanup-independent-review.json",
+    "audit/qwen-startup-independent-review.json",
+    "audit/qwen-control-cleanup-full.log",
+    "audit/qwen-close-start-final-full.log",
+    "audit/qwen-build-status.json",
+    "audit/qwen-control-build.log",
+    "audit/qwen-control-cli-build-4096.log",
+    "audit/qwen-control-cli-build-3072-measured.log",
+    "audit/qwen-initialization-cancellation-dedup.json",
+    "audit/qwen-initialization-cancellation-reproduction.log",
+    "audit/qwen-lifecycle-native-validation.json"
+  ],
+  "format": "base64(gzip(JSON mapping relative paths to UTF-8 text)))",
+  "sha256": "d24ae6b468862ffedada89a023146b6fd33757fa328bb6c39b5cb280f583f86e",
+  "production_heads": [
+    "e96d8980f129433b09c16dd76ed21e8a4dce5542",
+    "905841175ce10efac4ba68f0b9882a466a262c6f"
+  ],
+  "public_logs": "Only reviewed safe local test and compiler logs included; official CLI telemetry logs and runtime state excluded."
+}
