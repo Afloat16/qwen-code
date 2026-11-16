@@ -16,13 +16,13 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
-          fetch-depth: 2
+          fetch-depth: 3
           persist-credentials: false
       - name: Verify candidate source
         run: |
-          test "$(git rev-parse HEAD^)" = "b4468d0987865f3318aec3e6ff0e261c010a8406"
-          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/redirect-rules-validation.yml"
-          git rev-parse HEAD^
+          git merge-base --is-ancestor b4468d0987865f3318aec3e6ff0e261c010a8406 HEAD
+          test "$(git diff --name-only b4468d0987865f3318aec3e6ff0e261c010a8406 HEAD)" = ".github/workflows/redirect-rules-validation.yml"
+          git rev-parse b4468d0987865f3318aec3e6ff0e261c010a8406
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version-file: .nvmrc
