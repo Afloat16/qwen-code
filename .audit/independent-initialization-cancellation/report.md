@@ -2,6 +2,10 @@
 
 Repository: QwenLM/qwen-code, unchanged base `488a6874acfeaa66cc2cf0f92d8b25f6d9e99373`.
 
+Public issue: https://github.com/QwenLM/qwen-code/issues/17496 (created and API-verified open; project triage feedback is recorded below).
+
+Durable reproduction evidence: `Afloat16/qwen-code` commit `6ce8e1f18b52c9c97fa6a605a330fcae80e3c1a9`, under `.audit/independent-initialization-cancellation/`.
+
 Investigate whether cancellation of one public control-method task before the initialize response arrives also cancels another independently awaiting control method, prevents the initial prompt from being written, and makes later control methods fail despite the query remaining open. Compare with the same handshake and no cancellation, for a string prompt and an asynchronous input stream. Do not modify product source or propose a fix.
 
 This is separate from issue #17494's already-initialized request cleanup scenario, in which independent later calls still succeed. Before reproduction, issue/PR searches and the preserved complete Python SDK source history were checked. PR #15837 changes CLI readiness response timing and the timeout payload, #14311 changes buffered/terminal message delivery, and #13862 changes Windows subprocess resolution and cleanup. None supplies this per-caller initialization cancellation isolation.
@@ -42,8 +46,33 @@ Cancelling one independently awaited control call should end that caller's wait.
 - Reproduction script: `packages/sdk-python/tests/unit/test_initialization_cancellation_reproduction.py`.
 - Raw result: `/workspace/scratch/4bed741d4966/audit/qwen-initialization-cancellation-reproduction.log`.
 - The existing pytest-asyncio fixture-loop-scope deprecation warning is unrelated to the two assertion failures.
-- Product source was not changed. No fix has been proposed or verified by this independent test role.
+- At baseline, product source was not changed and no fix had been verified by this independent test role. The subsequent verification is recorded separately below.
 
 ## Verification report
 
-Pending. No product fix has been applied or verified for this report.
+**Status**: VERIFIED_FIXED for the original test-script reproduction only
+**Method**: test-script
+**Binary**: Python 3.12.14 and the exact local SDK at `70fa8a1518861d4b7846f758bbbd388792da56e0`; no official CLI binary executed
+**Command**: From `/workspace/scratch/4bed741d4966/worktrees/qwen-initialization-cancellation/packages/sdk-python`:
+
+```sh
+PYTHONPATH=/workspace/scratch/4bed741d4966/worktrees/qwen-initialization-cancellation/packages/sdk-python/src PYTHONDONTWRITEBYTECODE=1 /workspace/scratch/4bed741d4966/.venv-qwen/bin/python /workspace/scratch/4bed741d4966/audit/qwen-independent-verify.py /workspace/scratch/4bed741d4966/worktrees/qwen-initialization-cancellation 70fa8a1518861d4b7846f758bbbd388792da56e0 /workspace/scratch/4bed741d4966/repos/qwen-code/packages/sdk-python/tests/unit/test_initialization_cancellation_reproduction.py -q -s --tb=short --basetemp=/workspace/scratch/4bed741d4966/audit/qwen-initialization-independent-postfix-pytest
+```
+
+### Observed behavior after the fix
+
+The unchanged original four-case reproduction now reports **4 passed in 0.09 s**. In both string-prompt and async-input variants, the explicitly cancelled `supported_commands()` caller receives `CancelledError`; the independent `mcp_server_status()` and later `get_available_models()` calls receive their correct correlated responses. One user message is written, and the input task is not cancelled. The query and transport remain open until normal test cleanup. Both no-cancellation controls still deliver their prompt/input and all three control responses.
+
+The verification helper asserts the exact production HEAD, verifies that the imported SDK comes from the requested worktree, and checks that its product source has no uncommitted changes. This independent role has not modified product source. The original unchanged-base failure evidence above remains intact.
+
+### Verification scope and limitations
+
+- This verifies the originally reproduced public-call behavior with the local protocol fixture, including its basic no-cancellation controls. It does not claim an independent run of the author's broader lifecycle suite.
+- The fixture uses no CLI subprocess, credentials, or network. The previously rejected official-CLI operation was not retried or moved to another environment.
+- Repository build, bundle and preflight remain incomplete after the separately recorded TypeScript build processes were killed with exit 137. This report does not mark those gates, real-CLI E2E, or the complete bugfix workflow as passed.
+- Raw output: `/workspace/scratch/4bed741d4966/audit/qwen-initialization-independent-postfix.log`.
+
+
+## Project triage follow-up
+
+The project triage comment at https://github.com/QwenLM/qwen-code/issues/17496#issuecomment-6928311301 statically confirmed the root cause and that cancelling one caller should not destroy shared initialization. It also confirmed the distinction from #17494 and reviewed the four-case FakeTransport harness as sound. The triage explicitly did **not** execute the reproduction; the runtime evidence remains the independently recorded baseline of two failing cases and two passing controls. No product source has been changed by this test-engineer task.
