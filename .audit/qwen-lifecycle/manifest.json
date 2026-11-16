@@ -1,0 +1,29 @@
+{
+  "repository": "QwenLM/qwen-code",
+  "base": "488a6874acfeaa66cc2cf0f92d8b25f6d9e99373",
+  "status": "two independently reproduced issues; triage welcomes focused PRs; product implementation may proceed",
+  "issues": [
+    17493,
+    17494
+  ],
+  "historical_source_blobs": 120,
+  "relevant_history_commits": 1047,
+  "remote_refs": 16867,
+  "bundle_format": "base64(gzip(JSON mapping relative file paths to UTF-8 text)))",
+  "bundle_sha256": "9426efb625b978e8b68fb3f6f36356592e59cb4b048ab78d6f5d4b27f12f17f9",
+  "files": [
+    "audit/qwen-python-history-index.json",
+    "audit/qwen-python-lifecycle-method-audit.json",
+    "audit/qwen-initial-inventory.json",
+    "audit/qwen-lifecycle-created-issues.json",
+    "audit/qwen-python-baseline.log",
+    "audit/qwen-start-close-fallback.log",
+    "audit/qwen-control-cancellation-fallback.log",
+    "repos/qwen-code/.qwen/issues/issue-python-start-close.md",
+    "repos/qwen-code/.qwen/issues/issue-python-control-cancellation.md",
+    "repos/qwen-code/packages/sdk-python/tests/integration/test_start_close_reproduction.py",
+    "repos/qwen-code/packages/sdk-python/tests/unit/test_control_cancellation_reproduction.py",
+    "audit/qwen-lifecycle-triage-feedback.json"
+  ],
+  "public_logs": "Only native local baseline/fallback logs included; CLI E2E logs remain local."
+}
