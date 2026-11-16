@@ -1,4 +1,5 @@
 name: PR 17367 focused candidate validation
+run-name: Verify PR 17367 at f3589a7 with Unicode and review controls
 
 on:
   push:
