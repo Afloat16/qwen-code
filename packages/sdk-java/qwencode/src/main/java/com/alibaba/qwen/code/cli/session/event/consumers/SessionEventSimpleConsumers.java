@@ -68,7 +68,13 @@ public class SessionEventSimpleConsumers implements SessionEventConsumers {
                 new AssistantUsage(assistantMessage.getMessage().getId(), assistantMessage.getMessage().getUsage()));
 
         if (!session.isStreaming()) {
-            contentBlocks.forEach(contentBlock -> consumeAssistantContent(session, contentBlock));
+            String messageId = assistantMessage.getMessageId();
+            contentBlocks.forEach(contentBlock -> {
+                if (messageId != null) {
+                    contentBlock.setMessageId(messageId);
+                }
+                consumeAssistantContent(session, contentBlock);
+            });
         }
     }
 
