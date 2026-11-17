@@ -1291,6 +1291,107 @@ describe('ProcessTransport', () => {
   });
 
   describe('Error Handling', () => {
+    it.each([
+      [0, null],
+      [1, null],
+      [null, 'SIGTERM'],
+    ] as const)(
+      'preserves an asynchronous stdin error through child exit (%s, %s)',
+      async (code, signal) => {
+        mockPrepareSpawnInfo.mockReturnValue({
+          command: 'qwen',
+          args: [],
+          type: 'native',
+          originalInput: 'qwen',
+        });
+        mockSpawn.mockReturnValue(mockChildProcess);
+        const transport = new ProcessTransport({
+          pathToQwenExecutable: 'qwen',
+        });
+        const waiting = transport.waitForExit();
+        void waiting.catch(() => {});
+        const error = Object.assign(new Error('write EPIPE'), {
+          code: 'EPIPE',
+        });
+        try {
+          expect(() => mockStdin.emit('error', error)).not.toThrow();
+          expect(transport.isReady).toBe(false);
+          expect(transport.exitError).toBe(error);
+          expect(mockChildProcess.kill).toHaveBeenCalledWith('SIGTERM');
+          expect(() => transport.write('next message')).toThrow(
+            'Transport not ready for writing',
+          );
+
+          mockChildProcess.emit('close', code, signal);
+          await expect(waiting).rejects.toBe(error);
+          expect(transport.exitError).toBe(error);
+        } finally {
+          await transport.close();
+          mockChildProcess.emit('close', 0, null);
+          await waiting.catch(() => {});
+        }
+      },
+    );
+
+    it.each(['close', 'abort'] as const)(
+      'consumes late stdin errors after intentional %s without replacing the outcome',
+      async (shutdown) => {
+        mockPrepareSpawnInfo.mockReturnValue({
+          command: 'qwen',
+          args: [],
+          type: 'native',
+          originalInput: 'qwen',
+        });
+        mockSpawn.mockReturnValue(mockChildProcess);
+        const abortController = new AbortController();
+        const transport = new ProcessTransport({
+          pathToQwenExecutable: 'qwen',
+          abortController,
+        });
+        try {
+          if (shutdown === 'close') await transport.close();
+          else abortController.abort();
+          const killCount = vi.mocked(mockChildProcess.kill).mock.calls.length;
+          expect(() =>
+            mockStdin.emit('error', new Error('late write EPIPE')),
+          ).not.toThrow();
+          expect(mockChildProcess.kill).toHaveBeenCalledTimes(killCount);
+          expect(transport.exitError).toBeNull();
+          mockChildProcess.emit('close', 0, null);
+          if (shutdown === 'abort') {
+            expect(transport.exitError).toBeInstanceOf(AbortError);
+          } else {
+            expect(transport.exitError).toBeNull();
+          }
+        } finally {
+          await transport.close();
+          mockChildProcess.emit('close', 0, null);
+        }
+      },
+    );
+
+    it('keeps synchronous closed-pipe writes synchronous', async () => {
+      mockPrepareSpawnInfo.mockReturnValue({
+        command: 'qwen',
+        args: [],
+        type: 'native',
+        originalInput: 'qwen',
+      });
+      mockSpawn.mockReturnValue(mockChildProcess);
+      const transport = new ProcessTransport({
+        pathToQwenExecutable: 'qwen',
+      });
+      vi.mocked(mockStdin.write).mockImplementation(() => {
+        throw new Error('write EPIPE');
+      });
+      try {
+        expect(() => transport.write('message')).toThrow('Input stream closed');
+      } finally {
+        await transport.close();
+        mockChildProcess.emit('close', 0, null);
+      }
+    });
+
     it('should set exitError on process error', () => {
       mockPrepareSpawnInfo.mockReturnValue({
         command: 'qwen',

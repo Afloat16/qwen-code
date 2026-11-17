@@ -273,6 +273,14 @@ export class ProcessTransport implements Transport {
   private setupEventHandlers(): void {
     if (!this.childProcess) return;
 
+    this.childStdin?.on('error', (error: Error) => {
+      if (this.closed || this.abortController.signal.aborted) return;
+      this.inputClosed = true;
+      this.ready = false;
+      this._exitError ??= error;
+      this.requestChildProcessExit();
+    });
+
     this.childProcess.on('error', (error) => {
       this.unregisterForProcessExit();
       this.ready = false;
@@ -291,7 +299,7 @@ export class ProcessTransport implements Transport {
       if (this.abortController.signal.aborted) {
         this._exitError = new AbortError('CLI process aborted by user');
       } else {
-        const error = this.getProcessExitError(code, signal);
+        const error = this._exitError ?? this.getProcessExitError(code, signal);
         if (error) {
           this._exitError = error;
           logger.error(error.message);
@@ -495,7 +503,7 @@ export class ProcessTransport implements Transport {
           return;
         }
 
-        const error = this.getProcessExitError(code, signal);
+        const error = this._exitError ?? this.getProcessExitError(code, signal);
         if (error) {
           reject(error);
         } else {
