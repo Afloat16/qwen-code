@@ -874,7 +874,9 @@ export class AcpHttpTransport implements DaemonTransport {
           reader.read(),
           abortPromise,
         ]);
-        if (done) break;
+        if (done) {
+          throw new Error('Connection SSE stream closed unexpectedly');
+        }
         buf += decoder.decode(value, { stream: true });
         // Bound the unread buffer — the same OOM guard the session readers have.
         // A server/proxy that never emits a `\n\n` frame boundary would

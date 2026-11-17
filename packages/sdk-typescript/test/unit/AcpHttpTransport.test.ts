@@ -1729,3 +1729,149 @@ describe('AcpHttpTransport — session-reply pump (no-subscriber session RPC)', 
     t.dispose();
   });
 });
+
+describe('AcpHttpTransport — connection stream completion', () => {
+  function pendingRequests() {
+    const connections: Array<ReadableStreamDefaultController<Uint8Array>> = [];
+    const sessions = new Map<
+      string,
+      ReadableStreamDefaultController<Uint8Array>
+    >();
+    const requestIds = new Map<string, number>();
+    const { fetch } = initAwareFetch({
+      connectionIdHeader: 'conn-1',
+      subsequentReply: (req) => {
+        if (req.method === 'POST') {
+          const request = JSON.parse(req.body!) as {
+            method: string;
+            id: number;
+          };
+          requestIds.set(request.method, request.id);
+          return new Response(null, { status: 202 });
+        }
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              const sessionId = req.headers['acp-session-id'];
+              if (sessionId) sessions.set(sessionId, controller);
+              else connections.push(controller);
+            },
+          }),
+          { headers: { 'content-type': 'text/event-stream' } },
+        );
+      },
+    });
+    const transport = new AcpHttpTransport('http://d', undefined, fetch);
+    const reply = (
+      stream: ReadableStreamDefaultController<Uint8Array>,
+      method: string,
+      result: unknown,
+    ) => {
+      const id = requestIds.get(method);
+      expect(id).toBeTypeOf('number');
+      stream.enqueue(
+        new TextEncoder().encode(
+          `data: ${JSON.stringify({ jsonrpc: '2.0', id, result })}\n\n`,
+        ),
+      );
+    };
+    return { transport, connections, sessions, reply };
+  }
+
+  it.each(['EOF', 'network error'] as const)(
+    'rejects a connection request on %s and reopens for a later request',
+    async (ending) => {
+      const { transport, connections, reply } = pendingRequests();
+      const rejected = vi.fn();
+      const first = transport.fetch('http://d/session', {
+        method: 'POST',
+        body: '{}',
+      });
+      void first.catch(rejected);
+      try {
+        await vi.waitFor(() => expect(connections).toHaveLength(1));
+        const networkError = new Error('connection reset during reply');
+        if (ending === 'EOF') connections[0]!.close();
+        else connections[0]!.error(networkError);
+        await vi.waitFor(() => expect(rejected).toHaveBeenCalledTimes(1));
+        if (ending === 'EOF') {
+          expect(rejected.mock.calls[0]![0]).toEqual(
+            new Error('Connection SSE stream closed unexpectedly'),
+          );
+        } else {
+          expect(rejected.mock.calls[0]![0]).toBe(networkError);
+        }
+
+        const retry = transport.fetch('http://d/session', {
+          method: 'POST',
+          body: '{}',
+        });
+        void retry.catch(() => {});
+        await vi.waitFor(() => expect(connections).toHaveLength(2));
+        reply(connections[1]!, 'session/new', { sessionId: 'replacement' });
+        const response = await retry;
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual({ sessionId: 'replacement' });
+      } finally {
+        transport.dispose();
+        await first.catch(() => {});
+      }
+    },
+  );
+
+  it('keeps a session request alive when the connection stream closes', async () => {
+    const { transport, connections, sessions, reply } = pendingRequests();
+    const connectionRejected = vi.fn();
+    const sessionRejected = vi.fn();
+    const connection = transport.fetch('http://d/session', {
+      method: 'POST',
+      body: '{}',
+    });
+    const session = transport.fetch('http://d/session/sess-1/prompt', {
+      method: 'POST',
+      body: JSON.stringify({ prompt: [{ type: 'text', text: 'hi' }] }),
+    });
+    void connection.catch(connectionRejected);
+    void session.catch(sessionRejected);
+    try {
+      await vi.waitFor(() => {
+        expect(connections).toHaveLength(1);
+        expect(sessions.has('sess-1')).toBe(true);
+      });
+      connections[0]!.close();
+      await vi.waitFor(() =>
+        expect(connectionRejected).toHaveBeenCalledTimes(1),
+      );
+      expect(sessionRejected).not.toHaveBeenCalled();
+      reply(sessions.get('sess-1')!, 'session/prompt', {
+        stopReason: 'end_turn',
+      });
+      const response = await session;
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ stopReason: 'end_turn' });
+    } finally {
+      transport.dispose();
+      await Promise.allSettled([connection, session]);
+    }
+  });
+
+  it('preserves a matching response delivered immediately before EOF', async () => {
+    const { transport, connections, reply } = pendingRequests();
+    const request = transport.fetch('http://d/session', {
+      method: 'POST',
+      body: '{}',
+    });
+    void request.catch(() => {});
+    try {
+      await vi.waitFor(() => expect(connections).toHaveLength(1));
+      reply(connections[0]!, 'session/new', { sessionId: 'completed' });
+      connections[0]!.close();
+      const response = await request;
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ sessionId: 'completed' });
+    } finally {
+      transport.dispose();
+      await request.catch(() => {});
+    }
+  });
+});
