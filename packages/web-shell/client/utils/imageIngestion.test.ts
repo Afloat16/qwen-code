@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   dedupeAttachmentName,
   extractFileTransfer,
@@ -10,6 +10,8 @@ import {
   readFileTransfer,
   sanitizeAttachmentName,
 } from './imageIngestion';
+
+afterEach(() => vi.restoreAllMocks());
 
 function transfer({
   files = [],
@@ -159,6 +161,73 @@ describe('image ingestion', () => {
 
     expect(result.accepted).toHaveLength(10);
     expect(maxActiveReaders).toBe(4);
+  });
+
+  it('does not start readers for an already cancelled batch', async () => {
+    const file = new File(['image'], 'photo.png', { type: 'image/png' });
+    const started = vi.spyOn(FileReader.prototype, 'readAsDataURL');
+
+    const result = await readImageTransfer([{ file, mediaType: file.type }], {
+      isCurrent: () => false,
+    });
+
+    expect(started).not.toHaveBeenCalled();
+    expect(result).toEqual({ accepted: [], rejected: [] });
+  });
+
+  it('stops starting queued readers when the batch becomes stale', async () => {
+    const files = Array.from(
+      { length: 10 },
+      (_, i) => new File([`image-${i}`], `${i}.png`, { type: 'image/png' }),
+    );
+    const started = vi.spyOn(FileReader.prototype, 'readAsDataURL');
+    let current = true;
+
+    const result = await readImageTransfer(
+      files.map((file) => ({ file, mediaType: file.type })),
+      {
+        isCurrent: () => current,
+        onReaderSettled: () => {
+          current = false;
+        },
+      },
+    );
+
+    expect(started).toHaveBeenCalledTimes(4);
+    expect(result.accepted.map((image) => atob(image.data))).toEqual([
+      'image-0',
+      'image-1',
+      'image-2',
+      'image-3',
+    ]);
+    expect(result.rejected).toEqual([]);
+  });
+
+  it('continues a current batch after an individual read fails', async () => {
+    const files = Array.from(
+      { length: 6 },
+      (_, i) => new File([`image-${i}`], `${i}.png`, { type: 'image/png' }),
+    );
+    const started = vi
+      .spyOn(FileReader.prototype, 'readAsDataURL')
+      .mockImplementationOnce(() => {
+        throw new Error('Unreadable image');
+      });
+
+    const result = await readImageTransfer(
+      files.map((file) => ({ file, mediaType: file.type })),
+      { isCurrent: () => true },
+    );
+
+    expect(started).toHaveBeenCalledTimes(6);
+    expect(result.accepted.map((image) => atob(image.data))).toEqual([
+      'image-1',
+      'image-2',
+      'image-3',
+      'image-4',
+      'image-5',
+    ]);
+    expect(result.rejected).toEqual([{ name: '0.png', reason: 'read-failed' }]);
   });
 
   it('applies the size limit to each image independently', async () => {

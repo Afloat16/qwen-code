@@ -2262,6 +2262,7 @@ export function useComposerCore(
         .then(async () => {
           if (imageIngestionLaneRef.current !== lane) return;
           const readerLifecycle = {
+            isCurrent: () => imageIngestionLaneRef.current === lane,
             onReaderCreated: (reader: FileReader) =>
               lane.activeReaders.add(reader),
             onReaderSettled: (reader: FileReader) =>

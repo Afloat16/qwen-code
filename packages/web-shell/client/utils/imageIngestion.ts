@@ -38,6 +38,7 @@ export interface FileIngestionBatchResult {
 }
 
 interface ReaderLifecycle {
+  isCurrent?: () => boolean;
   onReaderCreated?: (reader: FileReader) => void;
   onReaderSettled?: (reader: FileReader) => void;
   maxBytes?: number;
@@ -385,7 +386,7 @@ export async function readImageTransfer(
   );
   let nextIndex = 0;
   const readNext = async () => {
-    while (nextIndex < candidates.length) {
+    while (nextIndex < candidates.length && lifecycle.isCurrent?.() !== false) {
       const index = nextIndex++;
       try {
         settled[index] = {
