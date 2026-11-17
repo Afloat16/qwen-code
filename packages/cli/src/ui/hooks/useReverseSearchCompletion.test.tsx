@@ -7,7 +7,7 @@
 /** @vitest-environment jsdom */
 
 import { describe, it, expect } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useReverseSearchCompletion } from './useReverseSearchCompletion.js';
 import { useTextBuffer } from '../components/shared/text-buffer.js';
 
@@ -233,6 +233,90 @@ describe('useReverseSearchCompletion', () => {
   });
 
   describe('Filtering', () => {
+    it.each([
+      {
+        change: 'adds matches',
+        before: ['echo old'],
+        after: ['echo new', 'pwd', 'echo old'],
+        expected: ['echo new', 'echo old'],
+      },
+      {
+        change: 'removes matches',
+        before: ['echo removed', 'echo kept'],
+        after: ['echo kept'],
+        expected: ['echo kept'],
+      },
+      {
+        change: 'reorders matches',
+        before: ['echo first', 'echo second'],
+        after: ['echo second', 'echo first'],
+        expected: ['echo second', 'echo first'],
+      },
+      {
+        change: 'removes every match',
+        before: ['echo removed'],
+        after: ['pwd'],
+        expected: [],
+      },
+    ])(
+      'updates cached results when history $change',
+      ({ before, after, expected }) => {
+        const { result, rerender } = renderHook(
+          ({ history }) =>
+            useReverseSearchCompletion(
+              { text: 'echo', setText: () => {} },
+              history,
+              true,
+            ),
+          { initialProps: { history: before } },
+        );
+        expect(
+          result.current.suggestions.map((suggestion) => suggestion.value),
+        ).toEqual(before);
+
+        rerender({ history: after });
+
+        expect(
+          result.current.suggestions.map((suggestion) => suggestion.value),
+        ).toEqual(expected);
+        expect(result.current.showSuggestions).toBe(expected.length > 0);
+        expect(result.current.activeSuggestionIndex).toBe(
+          expected.length > 0 ? 0 : -1,
+        );
+      },
+    );
+
+    it('continues narrowing and widening a query after history changes', async () => {
+      const { result, rerender } = renderHook(
+        ({ text, history }) =>
+          useReverseSearchCompletion(
+            { text, setText: () => {} },
+            history,
+            true,
+          ),
+        { initialProps: { text: 'echo', history: ['echo old'] } },
+      );
+      const history = ['echo newest', 'echo new', 'echo old'];
+      rerender({ text: 'echo', history });
+      expect(
+        result.current.suggestions.map((suggestion) => suggestion.value),
+      ).toEqual(history);
+
+      rerender({ text: 'echo new', history });
+      await waitFor(() => {
+        expect(
+          result.current.suggestions.map((suggestion) => suggestion.value),
+        ).toEqual(['echo newest', 'echo new']);
+      });
+
+      rerender({ text: 'echo', history });
+      await waitFor(() => {
+        expect(
+          result.current.suggestions.map((suggestion) => suggestion.value),
+        ).toEqual(history);
+      });
+    });
+
     it('filters history by buffer.text and sets showSuggestions', () => {
       const history = ['foo', 'barfoo', 'baz'];
       const { result } = renderHook(() =>

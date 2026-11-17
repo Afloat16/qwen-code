@@ -56,6 +56,7 @@ export function useReverseSearchCompletion(
   // incremental search
   const prevQueryRef = useRef<string>('');
   const prevMatchesRef = useRef<Suggestion[]>([]);
+  const prevHistoryRef = useRef(history);
 
   // Clear incremental cache when activating reverse search
   useEffect(() => {
@@ -97,6 +98,7 @@ export function useReverseSearchCompletion(
 
     const query = debouncedQuery.toLowerCase();
     const canUseCache =
+      prevHistoryRef.current === history &&
       prevQueryRef.current &&
       query.startsWith(prevQueryRef.current) &&
       prevMatchesRef.current.length > 0;
@@ -122,8 +124,10 @@ export function useReverseSearchCompletion(
 
     prevQueryRef.current = debouncedQuery.toLowerCase();
     prevMatchesRef.current = matches;
+    prevHistoryRef.current = history;
   }, [
     debouncedQuery,
+    history,
     matches,
     reverseSearchActive,
     setSuggestions,
