@@ -10,7 +10,7 @@ from typing import TypeVar, cast
 
 import pytest
 from qwen_code_sdk.errors import ProcessExitError
-from qwen_code_sdk.query import Query, query
+from qwen_code_sdk.query import _DONE, Query, query
 from qwen_code_sdk.transport import ProcessTransport
 from qwen_code_sdk.types import QueryOptions
 
@@ -265,6 +265,44 @@ async def test_router_failure_closes_its_own_paused_transport_reader() -> None:
     assert result.is_closed()
     assert reader.at_eof()
     assert reader.max_active_reads == 1
+
+
+@pytest.mark.asyncio
+async def test_stdout_read_error_reaches_consumer_and_finishes_stream() -> None:
+    transport, reader = transport_with_reader()
+    result = Query(transport, QueryOptions(), "hello", SESSION_ID)
+    result._started = True
+    consumer = asyncio.create_task(anext(result))
+    await asyncio.sleep(0)
+    failure = OSError("stdout read failed")
+    reader.set_exception(failure)
+    result._router_task = asyncio.create_task(result._message_router())
+    try:
+        with pytest.raises(OSError) as error:
+            await asyncio.wait_for(consumer, timeout=1)
+
+        assert error.value is failure
+        await asyncio.wait_for(result._router_task, timeout=1)
+        assert result.is_closed()
+        assert result._message_queue.get_nowait() is _DONE
+        assert result._message_queue.empty()
+    finally:
+        consumer.cancel()
+        result._router_task.cancel()
+        await asyncio.gather(consumer, result._router_task, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+async def test_shutdown_drain_keeps_unexpected_reader_errors_visible() -> None:
+    transport, reader = transport_with_reader()
+    failure = RuntimeError("concurrent reader")
+    reader.set_exception(failure)
+
+    with pytest.raises(RuntimeError) as error:
+        await transport.close()
+
+    assert error.value is failure
+    assert reader.active_reads == 0
 
 
 @pytest.mark.asyncio

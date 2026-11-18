@@ -221,7 +221,11 @@ class ProcessTransport:
         if self._process is None or self._process.stdout is None:
             return
         async with self._stdout_read_lock:
-            while await self._process.stdout.read(64 * 1024):
+            try:
+                while await self._process.stdout.read(64 * 1024):
+                    pass
+            except OSError:
+                # The protocol reader reports the original pipe failure.
                 pass
 
     async def close(self) -> None:
