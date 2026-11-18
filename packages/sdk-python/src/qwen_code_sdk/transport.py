@@ -82,6 +82,7 @@ class ProcessTransport:
         self._closed = False
         self._input_closed = False
         self._exit_error: Exception | None = None
+        self._stdout_read_lock = asyncio.Lock()
 
     @property
     def exit_error(self) -> Exception | None:
@@ -172,8 +173,11 @@ class ProcessTransport:
             raise RuntimeError("Transport is not started")
 
         while True:
-            line = await self._process.stdout.readline()
-            if not line:
+            async with self._stdout_read_lock:
+                if self._closed:
+                    break
+                line = await self._process.stdout.readline()
+            if self._closed or not line:
                 break
 
             raw = line.decode("utf-8", errors="replace").strip()
@@ -213,6 +217,13 @@ class ProcessTransport:
             except asyncio.TimeoutError:
                 pass
 
+    async def _drain_stdout(self) -> None:
+        if self._process is None or self._process.stdout is None:
+            return
+        async with self._stdout_read_lock:
+            while await self._process.stdout.read(64 * 1024):
+                pass
+
     async def close(self) -> None:
         if self._closed:
             return
@@ -226,6 +237,7 @@ class ProcessTransport:
             self._process.stdin.close()
             self._input_closed = True
 
+        stdout_task = asyncio.create_task(self._drain_stdout())
         try:
             if self._process.returncode is None:
                 tree_killed = False
@@ -255,7 +267,10 @@ class ProcessTransport:
                     await asyncio.wait_for(self._process.wait(), timeout=5.0)
 
             await self._finalize_exit()
+            await asyncio.wait_for(stdout_task, timeout=5.0)
         finally:
+            stdout_task.cancel()
+            await asyncio.gather(stdout_task, return_exceptions=True)
             if self._stderr_task is not None:
                 self._stderr_task.cancel()
                 try:
