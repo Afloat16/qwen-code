@@ -103,7 +103,8 @@ export function countMarkdownSourceBlocks(
       if (
         codeFenceMatch &&
         codeFenceMatch[1].startsWith(activeCodeFence[0]) &&
-        codeFenceMatch[1].length >= activeCodeFence.length
+        codeFenceMatch[1].length >= activeCodeFence.length &&
+        /^[ \t]*$/.test(codeFenceMatch[2] ?? '')
       ) {
         activeCodeFence = null;
         if (codeLanguage === 'mermaid') {
@@ -318,7 +319,8 @@ const MarkdownDisplayInternal: React.FC<MarkdownDisplayProps> = ({
           if (
             fenceMatch &&
             fenceMatch[1]!.startsWith(activeCodeFence[0]!) &&
-            fenceMatch[1]!.length >= activeCodeFence.length
+            fenceMatch[1]!.length >= activeCodeFence.length &&
+            /^[ \t]*$/.test(fenceMatch[2] ?? '')
           ) {
             activeCodeFence = '';
           }
@@ -481,7 +483,8 @@ const MarkdownDisplayInternal: React.FC<MarkdownDisplayProps> = ({
       if (
         fenceMatch &&
         fenceMatch[1].startsWith(codeBlockFence[0]) &&
-        fenceMatch[1].length >= codeBlockFence.length
+        fenceMatch[1].length >= codeBlockFence.length &&
+        /^[ \t]*$/.test(fenceMatch[2] ?? '')
       ) {
         addContentBlock(
           <RenderCodeBlock
@@ -809,7 +812,7 @@ const MarkdownDisplayInternal: React.FC<MarkdownDisplayProps> = ({
         lang={codeBlockLang}
         codeBlockIndex={currentCodeBlockIndex}
         codeBlockLangIndex={currentCodeBlockLangIndex}
-        originalCopyHint={copyHint}
+        originalCopyHint={copyHint ?? (() => undefined)}
         isPending={isPending}
         availableTerminalHeight={availableTerminalHeight}
         contentWidth={contentWidth}

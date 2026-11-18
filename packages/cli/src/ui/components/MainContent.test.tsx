@@ -406,6 +406,61 @@ describe('<MainContent />', () => {
     ).toBe(1);
   });
 
+  it.each([false, true])(
+    'ignores fence-like content in continuation copy offsets (VP: %s)',
+    (useTerminalBuffer) => {
+      historyItemDisplayPropsSpy.mockClear();
+      const copyable = [
+        '```mermaid',
+        'graph LR',
+        'A --> B',
+        '```',
+        '$$',
+        'visible',
+        '$$',
+      ].join('\n');
+      const example = [
+        '~~~text',
+        '~~~not-a-close',
+        '$$',
+        'hidden',
+        '$$',
+        '```mermaid',
+        'graph LR',
+        'H --> X',
+        '```',
+        '~~~',
+      ].join('\n');
+
+      renderMainContent(
+        createUIState({
+          useTerminalBuffer,
+          history: [
+            { id: 1, type: 'gemini', text: copyable + '\n' + example },
+            { id: 2, type: 'gemini_content', text: copyable },
+          ],
+          pendingHistoryItems: [{ type: 'gemini_content', text: copyable }],
+        }),
+      );
+
+      const calls = historyItemDisplayPropsSpy.mock.calls.map(
+        ([props]) => props,
+      );
+      const continuation = calls.find((props) => props.item.id === 2);
+      const pending = calls.find((props) => props.isPending);
+      expect(continuation?.sourceCopyIndexOffsets?.mathBlockCount).toBe(1);
+      expect(
+        continuation?.sourceCopyIndexOffsets?.codeBlockLanguageCounts.get(
+          'mermaid',
+        ),
+      ).toBe(1);
+      expect(pending?.sourceCopyIndexOffsets?.mathBlockCount).toBe(2);
+      expect(
+        pending?.sourceCopyIndexOffsets?.codeBlockLanguageCounts.get('mermaid'),
+      ).toBe(2);
+    },
+  );
+
   it('does not reset source copy numbering on a mid-turn steer item', () => {
     historyItemDisplayPropsSpy.mockClear();
 
