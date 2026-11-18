@@ -12,12 +12,16 @@ describe('SSE frame scanning', () => {
     'preserves every frame in a large batch (%j)',
     (separator) => {
       const frames = Array.from({ length: 16_000 }, (_, id) => `data: ${id}`);
-      expect(
-        consumeFrames(frames.join(separator) + separator + 'partial'),
-      ).toEqual({
+      const input = frames.join(separator) + separator + 'partial';
+      const started = performance.now();
+      const consumed = consumeFrames(input);
+      const elapsed = performance.now() - started;
+      expect(consumed).toEqual({
         frames,
         tail: 'partial',
       });
+      // Allow shared-runner headroom while catching full-remainder rescans.
+      expect(elapsed).toBeLessThan(500);
     },
   );
 
