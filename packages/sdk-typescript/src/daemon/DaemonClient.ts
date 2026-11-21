@@ -27,6 +27,7 @@ import type {
   DaemonSseConnectReason,
   DaemonTransport,
 } from './DaemonTransport.js';
+import { DaemonTransportClosedError } from './DaemonTransport.js';
 export type { DaemonSseConnectReason } from './DaemonTransport.js';
 import { RestSseTransport } from './RestSseTransport.js';
 import { DaemonCapabilityMissingError } from './types.js';
@@ -943,6 +944,7 @@ export interface SubscribeOptions {
 }
 
 export class DaemonClient {
+  private disposed = false;
   private readonly baseUrl: string;
   private readonly token: string | undefined;
   private readonly _fetch: typeof globalThis.fetch;
@@ -1067,6 +1069,7 @@ export class DaemonClient {
     perCallTimeoutMs?: number,
     mode: 'transport' | 'rest' = 'transport',
   ): Promise<T> {
+    this.assertNotDisposed();
     // When `consume` is provided, the timer must remain
     // armed through the entire callback (body read + parse). The
     // previous `Response`-returning shape cleared the timer the
@@ -2746,6 +2749,7 @@ export class DaemonClient {
     headers: Record<string, string>,
     parse: (body: unknown) => T,
   ): Promise<T> {
+    this.assertNotDisposed();
     if (typeof XMLHttpRequest === 'undefined') {
       throw new Error(
         `${label}: upload progress requires XMLHttpRequest (browser only)`,
@@ -5003,6 +5007,7 @@ export class DaemonClient {
     row: DaemonModRow,
     opts?: { signal?: AbortSignal; clientId?: string },
   ): Promise<DaemonModRowAnswer> {
+    this.assertNotDisposed();
     const res = await this._fetch(
       `${this.baseUrl}/session/${urlEncode(sessionId)}/mod-row`,
       {
@@ -5043,6 +5048,7 @@ export class DaemonClient {
     question: string,
     opts?: { signal?: AbortSignal; clientId?: string },
   ): AsyncGenerator<DaemonSessionBtwStreamEvent> {
+    this.assertNotDisposed();
     opts?.signal?.throwIfAborted();
     const requestId = createDaemonRequestId();
     const url = `${this.baseUrl}/session/${urlEncode(sessionId)}/btw/stream`;
@@ -5054,6 +5060,7 @@ export class DaemonClient {
     try {
       while (true) {
         opts?.signal?.throwIfAborted();
+        this.assertNotDisposed();
         if (reconnectDeadline !== undefined && Date.now() >= reconnectDeadline)
           throw lastReconnectError;
         const connection = new AbortController();
@@ -5136,6 +5143,7 @@ export class DaemonClient {
           throw new Error('BTW stream ended before completion');
         } catch (error) {
           opts?.signal?.throwIfAborted();
+          this.assertNotDisposed();
           if (
             error instanceof SseFramingError ||
             (error instanceof DaemonHttpError &&
@@ -8149,12 +8157,18 @@ export class DaemonClient {
 
   // -- Lifecycle / disposal ------------------------------------------------
 
+  private assertNotDisposed(): void {
+    if (this.disposed) throw new DaemonTransportClosedError();
+  }
+
   /**
    * Release transport resources (WS close, etc.). Idempotent.
-   * After `dispose()`, further calls to `fetch` / `subscribeEvents`
-   * on the underlying transport throw `DaemonTransportClosedError`.
+   * After `dispose()`, new requests also reject on native REST and upload
+   * paths that bypass the underlying transport.
    */
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     this.restoreBudgetGeneration = ++this.capabilitiesGeneration;
     this.capabilitiesRequest = undefined;
     this.capabilityFeatures = undefined;
