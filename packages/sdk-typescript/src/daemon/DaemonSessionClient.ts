@@ -881,11 +881,13 @@ export class DaemonSessionClient {
    * `invalid_client_id`) propagates.
    */
   private async withClientIdSelfHeal<T>(fn: () => Promise<T>): Promise<T> {
+    const attemptedClientId = this.clientId;
     try {
       return await fn();
     } catch (err) {
       if (!isInvalidClientId(err)) throw err;
-      await this.reattach();
+      // Another request may already have repaired the rejected registration.
+      if (this.clientId === attemptedClientId) await this.reattach();
       return await fn();
     }
   }
