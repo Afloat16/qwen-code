@@ -382,7 +382,10 @@ export class DaemonSessionClient {
   subscribeGeneratedUiRevocation(listener: (revision: number) => void) {
     this.generatedUiRevocationListeners.add(listener);
     if (this.generatedUiRevocationRevision > 0)
-      listener(this.generatedUiRevocationRevision);
+      this.notifyGeneratedUiRevocation(
+        listener,
+        this.generatedUiRevocationRevision,
+      );
     return () => {
       this.generatedUiRevocationListeners.delete(listener);
     };
@@ -392,8 +395,35 @@ export class DaemonSessionClient {
     this.session.generatedUi = status;
     if (status?.version !== 1 || status.enabled !== false) return;
     const revision = ++this.generatedUiRevocationRevision;
-    for (const listener of this.generatedUiRevocationListeners)
+    // New subscribers receive the current revision during subscription.
+    // Snapshot to avoid delivering it twice if one subscribes in a callback.
+    for (const listener of [...this.generatedUiRevocationListeners]) {
+      if (this.generatedUiRevocationListeners.has(listener))
+        this.notifyGeneratedUiRevocation(listener, revision);
+    }
+  }
+
+  private notifyGeneratedUiRevocation(
+    listener: (revision: number) => void,
+    revision: number,
+  ): void {
+    try {
       listener(revision);
+    } catch (error) {
+      // An observer cannot discard a confirmed denial or prevent the
+      // remaining observers from revoking their generated UI resources.
+      try {
+        const reporter = (
+          globalThis as typeof globalThis & {
+            reportError?: (error: unknown) => void;
+          }
+        ).reportError;
+        if (typeof reporter === 'function') reporter(error);
+        else globalThis.console?.error(error);
+      } catch {
+        // Diagnostics must not interrupt revocation delivery either.
+      }
+    }
   }
 
   /**
