@@ -478,7 +478,7 @@ export class AcpWsTransport implements DaemonTransport {
       };
 
       ws.onmessage = (event) => {
-        let msg: Record<string, unknown>;
+        let msg: unknown;
         try {
           msg = JSON.parse(
             typeof event.data === 'string' ? event.data : String(event.data),
@@ -486,6 +486,7 @@ export class AcpWsTransport implements DaemonTransport {
         } catch {
           return; // ignore non-JSON messages
         }
+        if (!isRecord(msg)) return;
 
         // JSON-RPC response (has `id` field).
         if ('id' in msg && typeof msg['id'] === 'number') {
