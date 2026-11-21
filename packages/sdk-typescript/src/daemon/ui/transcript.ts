@@ -34,7 +34,12 @@ import {
   createDaemonToolPreview,
   createDaemonToolResultPreview,
 } from './toolPreview.js';
-import { detachString, getFirstString, isRecord } from './utils.js';
+import {
+  detachString,
+  getFirstString,
+  isRecord,
+  sliceAtCodePointBoundary,
+} from './utils.js';
 
 const DEFAULT_MAX_BLOCKS = 1_000;
 /**
@@ -2593,7 +2598,7 @@ function truncateTextAtLimit(text: string): string {
   );
   // detach: a bare slice would keep the oversized parent string's backing
   // store alive for as long as the block is retained.
-  return `${detachString(text.slice(0, keepLength))}${TEXT_TRUNCATED_SUFFIX}`;
+  return `${detachString(sliceAtCodePointBoundary(text, keepLength))}${TEXT_TRUNCATED_SUFFIX}`;
 }
 
 function truncateText(

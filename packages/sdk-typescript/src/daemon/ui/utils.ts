@@ -134,13 +134,29 @@ export function detachString(value: string): string {
   return new TextDecoder('utf-8').decode(new TextEncoder().encode(value));
 }
 
+/** Keep the UTF-16 budget without retaining half of a surrogate pair. */
+export function sliceAtCodePointBoundary(value: string, limit: number): string {
+  let end = Math.trunc(limit);
+  const before = value.charCodeAt(end - 1);
+  const after = value.charCodeAt(end);
+  if (
+    before >= 0xd800 &&
+    before <= 0xdbff &&
+    after >= 0xdc00 &&
+    after <= 0xdfff
+  ) {
+    end--;
+  }
+  return value.slice(0, end);
+}
+
 /**
  * Caps a rendered details string so a single unbounded payload cannot grow a
  * transcript block without limit.
  */
 export function capDetails(details: string): string {
   if (details.length <= MAX_DETAILS_LENGTH) return details;
-  return `${detachString(details.slice(0, MAX_DETAILS_LENGTH))}... [truncated]`;
+  return `${detachString(sliceAtCodePointBoundary(details, MAX_DETAILS_LENGTH))}... [truncated]`;
 }
 
 export function redactSensitiveFields(value: unknown, depth = 0): unknown {

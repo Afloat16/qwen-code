@@ -27,7 +27,7 @@ import type {
   DaemonTranscriptBlock,
   DaemonTranscriptQuestion,
 } from './types.js';
-import { sanitizeTerminalText } from './utils.js';
+import { sanitizeTerminalText, sliceAtCodePointBoundary } from './utils.js';
 
 export interface DaemonRenderOptions {
   /**
@@ -631,7 +631,8 @@ export function daemonBlockToHtml(
 function capLength(opts: DaemonRenderOptions): (s: string) => string {
   const max = opts.maxFieldLength ?? DEFAULT_MAX_FIELD_LENGTH;
   if (!Number.isFinite(max) || max <= 0) return (s) => s;
-  return (s) => (s.length <= max ? s : `${s.slice(0, max)}… [truncated]`);
+  return (s) =>
+    s.length <= max ? s : `${sliceAtCodePointBoundary(s, max)}… [truncated]`;
 }
 
 function escapeMarkdownText(
