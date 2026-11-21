@@ -1203,6 +1203,8 @@ describe('Query', () => {
 
       const stream = query.streamInput(messages());
       transport.simulateMessage(createResultMessage(true));
+      transport.simulateMessage(createResultMessage(true));
+      transport.simulateMessage(createResultMessage(true));
       await stream;
 
       const userMessages = transport
@@ -1234,6 +1236,7 @@ describe('Query', () => {
 
       const streamPromise = query.streamInput(messageGenerator());
       transport.simulateMessage(createResultMessage(true));
+      transport.simulateMessage(createResultMessage(true));
       await streamPromise;
 
       const messages = transport.getAllWrittenMessages();
@@ -1261,6 +1264,7 @@ describe('Query', () => {
       }
 
       const streamPromise = query.streamInput(messageGenerator());
+      transport.simulateMessage(createResultMessage(true));
       transport.simulateMessage(createResultMessage(true));
       await streamPromise;
 

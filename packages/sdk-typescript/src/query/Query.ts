@@ -132,8 +132,12 @@ export class Query implements AsyncIterable<SDKMessage> {
   private messageRouterStarted = false;
   private transportReadFinalized = false;
 
-  private firstResultReceivedPromise?: Promise<void>;
-  private firstResultReceivedResolve?: () => void;
+  private submittedInputCount = 0;
+  private receivedResultCount = 0;
+  private inputResultWaiters = new Set<{
+    target: number;
+    resolve: () => void;
+  }>();
 
   private readonly isSingleTurn: boolean;
   private abortHandler: (() => void) | null = null;
@@ -162,15 +166,6 @@ export class Query implements AsyncIterable<SDKMessage> {
      * properly rejected when the user starts iterating.
      */
     this.sdkMessages = this.readSdkMessages();
-
-    /**
-     * Promise that resolves when the first SDKResultMessage is received.
-     * Used to coordinate endInput() timing - ensures all initialization
-     * (SDK MCP servers, control responses) is complete before closing CLI stdin.
-     */
-    this.firstResultReceivedPromise = new Promise((resolve) => {
-      this.firstResultReceivedResolve = resolve;
-    });
 
     /**
      * Handle abort signal if controller is provided and already aborted or will be aborted.
@@ -456,9 +451,8 @@ export class Query implements AsyncIterable<SDKMessage> {
     }
 
     if (isSDKResultMessage(message)) {
-      if (this.firstResultReceivedResolve) {
-        this.firstResultReceivedResolve();
-      }
+      this.receivedResultCount++;
+      this.settleInputResultWaiters();
       /**
        * In single-turn mode, automatically close input after receiving result
        * to signal completion to the CLI.
@@ -489,6 +483,7 @@ export class Query implements AsyncIterable<SDKMessage> {
       return;
     }
     this.transportReadFinalized = true;
+    this.settleInputResultWaiters();
 
     const rejectionError =
       error ??
@@ -880,6 +875,7 @@ export class Query implements AsyncIterable<SDKMessage> {
     }
 
     this.closed = true;
+    this.settleInputResultWaiters();
 
     // Remove abort listener to prevent memory leak
     if (this.abortHandler) {
@@ -964,6 +960,19 @@ export class Query implements AsyncIterable<SDKMessage> {
     return this.sdkMessages;
   }
 
+  private settleInputResultWaiters(): void {
+    for (const waiter of this.inputResultWaiters) {
+      if (
+        this.receivedResultCount >= waiter.target ||
+        this.closed ||
+        this.transportReadFinalized
+      ) {
+        waiter.resolve();
+        this.inputResultWaiters.delete(waiter);
+      }
+    }
+  }
+
   async streamInput(messages: AsyncIterable<SDKUserMessage>): Promise<void> {
     if (this.closed) {
       throw new Error('Query is closed');
@@ -982,40 +991,39 @@ export class Query implements AsyncIterable<SDKMessage> {
           break;
         }
         this.transport.write(serializeJsonLine(message));
+        this.submittedInputCount++;
       }
 
       /**
-       * After all user messages are sent (for-await loop ended), determine when to
-       * close the CLI's stdin via endInput().
-       *
-       * - If a result message was already received: All initialization (SDK MCP servers,
-       *   control responses, etc.) is complete, safe to close stdin immediately.
-       * - If no result yet: Wait for either the result to arrive, or the timeout to expire.
-       *   This gives pending control_responses from SDK MCP servers or other modules
-       *   time to complete their initialization before we close the input stream.
-       *
-       * The timeout ensures we don't hang indefinitely - either the turn proceeds
-       * normally, or it fails with a timeout, but Promise.race will always resolve.
+       * Every submitted turn may need permission or MCP replies on stdin.
+       * Keep it writable until all results arrive, while retaining the existing
+       * bounded wait if a turn never completes. Count results received before
+       * the producer finishes too.
        */
-      if (this.firstResultReceivedPromise) {
+      const target = this.submittedInputCount;
+      if (
+        this.receivedResultCount < target &&
+        !this.closed &&
+        !this.transportReadFinalized
+      ) {
         const streamCloseTimeout =
           this.options.timeout?.streamClose ?? DEFAULT_STREAM_CLOSE_TIMEOUT;
         let timeoutId: NodeJS.Timeout | undefined;
-
-        const timeoutPromise = new Promise<void>((resolve) => {
-          timeoutId = setTimeout(() => {
-            logger.info('streamCloseTimeout resolved');
-            resolve();
-          }, streamCloseTimeout);
+        let waiter: { target: number; resolve: () => void } | undefined;
+        const results = new Promise<void>((resolve) => {
+          waiter = { target, resolve };
+          this.inputResultWaiters.add(waiter);
+          timeoutId = setTimeout(resolve, streamCloseTimeout);
         });
-
-        await Promise.race([this.firstResultReceivedPromise, timeoutPromise]);
-
-        if (timeoutId) {
+        try {
+          await results;
+        } finally {
           clearTimeout(timeoutId);
+          if (waiter) this.inputResultWaiters.delete(waiter);
         }
       }
 
+      if (this.closed || this.transportReadFinalized) return;
       this.endInput();
     } catch (error) {
       if (this.abortController.signal.aborted) {
