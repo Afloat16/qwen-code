@@ -993,6 +993,49 @@ The full output has been saved to: not a header, just text`;
     expect(isPersistedOutputStub(quotedAfterHeader)).toBe(false);
   });
 
+  it.each([
+    ['application/octet-stream', '64 bytes', '/tmp/tool-results/blob.bin', ''],
+    ['application/zip', '1KB', '/tmp/tool results/archive.zip', ''],
+    ['application/zip; name="a,b (backup)"', '1.2KB', '/tmp/archive.zip', ''],
+    ['unknown', '2.5GB', '/tmp/large.bin', ''],
+    [
+      'application/pdf',
+      '3.4MB',
+      'C:\\Users\\Example User\\tool-results\\document.pdf',
+      ' Use read_file to examine it (reads PDFs natively; pass pages for large files).',
+    ],
+    [
+      'image/png',
+      '900 bytes',
+      '/tmp/tool-results/[example].png',
+      ' Use read_file to view it.',
+    ],
+  ])(
+    'recognizes a web_fetch binary footer for %s (%s)',
+    (mime, size, savedPath, hint) => {
+      const output = `URL: https://example.com/download\nStatus: 200 OK\n\nFetched content.\n\n[Binary content (${mime}, ${size}) saved to ${savedPath}.${hint}]`;
+      expect(isPersistedOutputStub(output)).toBe(true);
+    },
+  );
+
+  it('recognizes a binary footer after a long URL and quoted body note', () => {
+    const output = `URL: https://example.com/?${'x'.repeat(5_000)}\nStatus: 200 OK\n\n[Binary content (quoted example)]\n\n[Binary content (application/pdf, 1KB) saved to /tmp/document.pdf. Use read_file to examine it (reads PDFs natively; pass pages for large files).]`;
+    expect(isPersistedOutputStub(output)).toBe(true);
+  });
+
+  it.each([
+    '[Binary content (application/pdf, 1KB) saved to /tmp/document.pdf.]',
+    'Quoted: [Binary content (application/pdf, 1KB) saved to /tmp/document.pdf.]',
+    'URL: https://example.com\n\n[Binary content (application/pdf, 1KB) saved to /tmp/document.pdf.]\n\nMore page content.',
+    'URL: https://example.com\n\n```\n[Binary content (application/pdf, 1KB) saved to /tmp/document.pdf.]\n```',
+    'URL: https://example.com\n\n[Binary content (application/pdf, large) saved to /tmp/document.pdf.]',
+    'URL: https://example.com\n\n[Binary content (application/pdf, 1KB) saved to .]',
+    'URL: https://example.com\n\n[Binary content (application/pdf, 1KB) saved to /tmp/document.pdf]',
+    'URL: https://example.com\n\n[Binary content (application/pdf, 1KB) saved to /tmp/document.pdf.]\n',
+  ])('does not classify an incomplete or quoted binary note: %s', (output) => {
+    expect(isPersistedOutputStub(output)).toBe(false);
+  });
+
   // The predicate is positional: the saved-path header must be line 2 of the
   // envelope. Hand-built bodies above cannot catch a producer that stops
   // emitting it there, so assert against what the producers actually write.

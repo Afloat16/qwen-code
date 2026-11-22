@@ -73,6 +73,7 @@ web_fetch(url="https://developers.cloudflare.com/fundamentals/reference/markdown
 - **URL format:** The tool automatically upgrades HTTP URLs to HTTPS and converts GitHub blob URLs to raw format for better content access.
 - **Content negotiation:** The tool supports "Markdown for Agents" content negotiation. When using `format="auto"` (default), it sends `Accept: text/markdown, text/html;q=0.9, text/plain;q=0.8, */*;q=0.1`, allowing servers that support markdown to return it directly instead of HTML. The low-priority `*/*` fallback keeps JSON-only APIs and other non-text endpoints fetchable. This can reduce token usage by up to 80%.
 - **Content processing:** The tool fetches content directly and processes it using an AI model. When the server returns HTML, it converts it to readable text format. When the server returns markdown, plain text, or another fallback content type such as JSON, it uses the content as-is.
+- **Saved binary files:** Downloaded binary files include a local path for later inspection. Automatic idle and size microcompaction preserves that reference, including after a saved session is resumed. Ordinary fetched text without a saved file remains eligible for clearing.
 - **Output quality:** The quality of the output will depend on the clarity of the instructions in the prompt.
 - **MCP tools:** If an MCP-provided web fetch tool is available (starting with "mcp\_\_"), prefer using that tool as it may have fewer restrictions.
 

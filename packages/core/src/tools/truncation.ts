@@ -89,10 +89,10 @@ const WEB_FETCH_HEADER_LIMIT = 4 * 1024;
  * Four producers spill: `buildStub` (the `<persisted-output>` envelope),
  * `truncateAndSaveToFile`'s `envelope` (the `Tool output was too large...`
  * one), the send-path finalizer's artifact header, and `web_fetch`'s
- * saved-text note behind its metadata header. Bounded envelopes that could
- * NOT save (`Full output could not be saved`, `Could not save full output to
- * file`) carry no path and return false: there is nothing to orphan, so they
- * stay clearable.
+ * saved-text note behind its metadata header or saved-binary footer. An
+ * envelope that could NOT save (`Full output could not be saved` or
+ * `Could not save full output to file`) carries no path and returns false:
+ * there is nothing to orphan, so it stays clearable.
  */
 export function isPersistedOutputStub(content: string): boolean {
   if (content.startsWith(PERSISTED_OUTPUT_STUB_PREFIX)) return true;
@@ -108,6 +108,24 @@ export function isPersistedOutputStub(content: string): boolean {
       (headerEnd === -1 || savedAt < headerEnd)
     ) {
       return true;
+    }
+    // JSON resume loses the recovery handle. Binary pointers live in a final
+    // footer, not the metadata header; a quoted phrase in the body is not one.
+    const binaryAt = content.lastIndexOf('\n\n[Binary content (');
+    if (binaryAt >= 0 && content.endsWith(']')) {
+      const note = content.slice(binaryAt + 2);
+      const binaryHeader =
+        /^\[Binary content \([^\r\n]+, (?:\d+ bytes|\d+(?:\.\d)?[KMG]B)\) saved to /.exec(
+          note,
+        );
+      if (
+        binaryHeader &&
+        /^[^\r\n]+\.(?: Use read_file to (?:view it|examine it \(reads PDFs natively; pass pages for large files\))\.)?\]$/.test(
+          note.slice(binaryHeader[0].length),
+        )
+      ) {
+        return true;
+      }
     }
   }
   if (!content.startsWith(TOOL_OUTPUT_TRUNCATED_PREFIX)) return false;

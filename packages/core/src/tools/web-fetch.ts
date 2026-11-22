@@ -655,6 +655,7 @@ Status: ${entry.status} ${entry.statusText || 'OK'} | Content-Type: ${entry.cont
           llmContent: `${header}\n\n[No text could be extracted from this binary content.]${binaryNote}`,
           returnDisplay: `${displaySummary}${elapsedSuffix()}`,
           resultFilePaths: [entry.persistedPath],
+          persistedOutputFiles: [entry.persistedPath],
         };
       }
 

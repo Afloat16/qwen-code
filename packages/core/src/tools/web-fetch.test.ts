@@ -5,7 +5,14 @@
  */
 
 import { convertToFunctionResponse } from '../core/coreToolScheduler.js';
+import type { Content } from '@google/genai';
+import {
+  microcompactHistory,
+  MICROCOMPACT_CLEARED_MESSAGE,
+} from '../services/microcompaction/microcompact.js';
+import { content, fnCall, fnResponse } from '../test-utils/model-fixtures.js';
 import { finalizeToolResponses } from './tool-response-finalizer.js';
+import { getToolOutputRecovery } from './tool-output-recovery.js';
 import { isPersistedOutputStub } from './truncation.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
@@ -876,6 +883,156 @@ describe('WebFetchTool', () => {
   });
 
   describe('binary content', () => {
+    describe.each(['idle', 'size'] as const)(
+      'saved binary recovery through %s microcompaction',
+      (trigger) => {
+        it.each([
+          'binary-only',
+          'binary-only with MIME parameters',
+          'PDF summary',
+          'PDF processing failure',
+          'trusted markdown passthrough',
+        ] as const)(
+          'preserves the real %s pointer before and after JSON resume',
+          async (variant) => {
+            vi.stubEnv('QWEN_MC_KEEP_RECENT', '1');
+            const binaryOnly = variant.startsWith('binary-only');
+            const mimeParameters =
+              variant === 'binary-only with MIME parameters';
+            const passthrough = variant === 'trusted markdown passthrough';
+            const processingFailure = variant === 'PDF processing failure';
+            const binaryBytes = mimeParameters
+              ? Buffer.alloc(64, 0x81)
+              : pdfBytes;
+            const url = passthrough
+              ? 'https://docs.python.org/3/library/download.md'
+              : mimeParameters
+                ? 'https://example.com/archive.bin'
+                : 'https://example.com/document.pdf';
+            stubFetch({
+              ...PDF,
+              body: binaryBytes,
+              contentType: mimeParameters
+                ? 'application/octet-stream; note=") saved to "'
+                : passthrough
+                  ? 'text/markdown'
+                  : PDF.contentType,
+              finalUrl: url,
+            });
+            if (!binaryOnly) {
+              mockExtractPDFText.mockResolvedValue({
+                success: true,
+                text: 'Short extracted document text.',
+              });
+            }
+            if (processingFailure) {
+              mockGenerateContent.mockRejectedValue(new Error('API error'));
+            } else {
+              mockGenerateContent.mockResolvedValue({ text: 'PDF summary.' });
+            }
+
+            const result = await run(url);
+            expect(result.error).toBeUndefined();
+            expect(result.resultFilePaths).toHaveLength(1);
+            const binaryPath = result.resultFilePaths![0]!;
+            expect(fs.readFileSync(binaryPath)).toEqual(binaryBytes);
+            expect(result.persistedOutputFiles).toEqual(
+              binaryOnly ? [binaryPath] : undefined,
+            );
+            expect(isPersistedOutputStub(result.llmContent as string)).toBe(
+              true,
+            );
+            if (binaryOnly || passthrough) {
+              expect(mockGenerateContent).not.toHaveBeenCalled();
+            } else {
+              expect(mockGenerateContent).toHaveBeenCalledOnce();
+            }
+            expect(result.llmContent).toContain(
+              binaryOnly
+                ? '[No text could be extracted'
+                : passthrough
+                  ? 'Short extracted document text.'
+                  : processingFailure
+                    ? '[Content processing failed'
+                    : 'PDF summary.',
+            );
+
+            const [finalized] = await finalizeToolResponses(
+              {
+                ...mockConfig,
+                getToolOutputBatchBudget: () => 10_000,
+              } as Config,
+              [
+                {
+                  callId: 'binary',
+                  toolName: 'web_fetch',
+                  responseParts: convertToFunctionResponse(
+                    'web_fetch',
+                    'binary',
+                    result.llmContent,
+                    result,
+                  ),
+                  persistedOutputFiles: result.persistedOutputFiles,
+                },
+              ],
+            );
+            expect(
+              getToolOutputRecovery(finalized!.responseParts[0]!)
+                ?.persistedOutputFiles,
+            ).toEqual(binaryOnly ? [binaryPath] : undefined);
+
+            const ordinary = 'URL: https://example.com/page\n\nOrdinary text.';
+            const newest = 'Newest ordinary output.';
+            const history: Content[] = [
+              content('model', fnCall('web_fetch', { url }, 'binary')),
+              content('user', ...finalized!.responseParts),
+              content('model', fnCall('web_fetch', {}, 'ordinary')),
+              content(
+                'user',
+                fnResponse('web_fetch', { output: ordinary }, 'ordinary'),
+              ),
+              content('model', fnCall('run_shell_command', {}, 'newest')),
+              content(
+                'user',
+                fnResponse('run_shell_command', { output: newest }, 'newest'),
+              ),
+            ];
+            const resumed = JSON.parse(JSON.stringify(history)) as Content[];
+            expect(
+              getToolOutputRecovery(resumed[1]!.parts![0]!),
+            ).toBeUndefined();
+            for (const candidate of [history, resumed]) {
+              const compacted = microcompactHistory(
+                candidate,
+                trigger === 'idle' ? Date.now() - 120 * 60_000 : Date.now(),
+                {
+                  toolResultsThresholdMinutes: 60,
+                  toolResultsNumToKeep: 1,
+                  toolResultsTotalCharsThreshold: trigger === 'idle' ? -1 : 100,
+                },
+              );
+              const outputs = compacted.history
+                .filter((entry) => entry.role === 'user')
+                .map(
+                  (entry) =>
+                    entry.parts![0]!.functionResponse!.response!['output'],
+                );
+              expect(compacted.meta).toMatchObject({
+                triggerReason: trigger,
+                toolsCleared: 1,
+              });
+              expect(outputs).toEqual([
+                result.llmContent,
+                MICROCOMPACT_CLEARED_MESSAGE,
+                newest,
+              ]);
+              expect(outputs[0]).toContain(binaryPath);
+            }
+          },
+        );
+      },
+    );
+
     it('should treat textual application types (yaml/ndjson) as text', async () => {
       const { result, sent } = await runCapturing(
         {
